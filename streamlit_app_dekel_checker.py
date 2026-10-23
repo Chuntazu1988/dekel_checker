@@ -1,8 +1,10 @@
 import html
+import io
 import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -160,7 +162,7 @@ BATCH_JS = """async (names) => {
       out.push(await one(n));
     }
   };
-  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  await Promise.all(Array.from({length: 6}, worker));
   return out;
 }"""
 
@@ -169,10 +171,15 @@ def _result(emoji, rating, text, role=""):
     return {"emoji": emoji, "rating": rating, "text": text, "role": role}
 
 
-def _open_dictionary(page):
+def _open_dictionary(page, reload=False):
     page.goto(DICTIONARY_URL, timeout=30000)
-    page.reload()
-    page.wait_for_timeout(4000)
+    if reload:
+        page.reload()
+    try:
+        page.wait_for_selector('input[type="search"]', state="visible", timeout=15000)
+    except Exception:
+        pass
+    page.wait_for_timeout(500)
 
 
 def _is_logged_in(page):
@@ -197,7 +204,7 @@ def _ensure_logged_in(page, context, env):
             return outcome
 
     context.storage_state(path=str(SESSION_PATH))
-    _open_dictionary(page)
+    _open_dictionary(page, reload=True)
     return True if _is_logged_in(page) else "not-logged-in"
 
 
@@ -238,11 +245,35 @@ def _to_result(item):
     return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles)
 
 
+@st.cache_resource
+def _ingredient_cache():
+    return {}
+
+
+CACHE_TTL_SECONDS = 24 * 60 * 60
+
+
 def search_many(ingredients, on_progress=None):
     ingredients = list(dict.fromkeys(ingredients))
-    if not ingredients:
-        return {}
+    cache = _ingredient_cache()
+    now = time.time()
+    cached = {
+        ing: cache[ing.lower()][1]
+        for ing in ingredients
+        if ing.lower() in cache and now - cache[ing.lower()][0] < CACHE_TTL_SECONDS
+    }
+    missing = [ing for ing in ingredients if ing not in cached]
+    if not missing:
+        return cached
 
+    fetched = _fetch_many(missing, on_progress)
+    for ing, result in fetched.items():
+        if result["emoji"] not in ("🔒", "❌"):
+            cache[ing.lower()] = (now, result)
+    return {**cached, **fetched}
+
+
+def _fetch_many(ingredients, on_progress=None):
     env = load_env()
     ensure_playwright_browser()
     results = {}
@@ -305,6 +336,21 @@ if "results" not in st.session_state:
     st.session_state.results = {}
 
 
+@st.cache_resource(show_spinner="טוענת מנוע זיהוי טקסט (רק בפעם הראשונה)...")
+def get_ocr_reader():
+    return easyocr.Reader(["en"], gpu=False)
+
+
+@st.cache_data(show_spinner=False)
+def extract_text(image_bytes):
+    image = Image.open(io.BytesIO(image_bytes))
+    processed_image = preprocess_for_ocr(image)
+    results = get_ocr_reader().readtext(np.array(processed_image), detail=0)
+    extracted_text = " ".join(results)
+    # מסירה כותרות "Ingredients" שנדבקות לרכיב הראשון בלי פסיק
+    return re.sub(r"^(?:ingredients\s*:?\s*|\d+\s+)+", "", extracted_text, flags=re.IGNORECASE)
+
+
 def preprocess_for_ocr(image):
     # הגדלת רזולוציה + ניגודיות + חידוד עוזרות ל-OCR לתפוס פסיקים
     # קטנים שהוא נוטה לפספס בגבולות בין אזורי טקסט
@@ -350,6 +396,7 @@ def check_all(ingredients):
     todo = [ing for ing in ingredients if ing not in st.session_state.results]
     if not todo:
         return
+    started = time.time()
     bar = st.progress(0.0, text="מתחילה בדיקה...")
 
     def on_progress(done, total, name):
@@ -357,6 +404,7 @@ def check_all(ingredients):
 
     st.session_state.results.update(search_many(todo, on_progress))
     bar.empty()
+    st.caption(f"נבדקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
 
 
 def show_summary(ingredients):
@@ -408,12 +456,10 @@ if uploaded_image:
     st.image(image, caption="התמונה שהועלתה", width="stretch")
 
     if st.button("חלץ רכיבים מהתמונה"):
-        processed_image = preprocess_for_ocr(image)
-        reader = easyocr.Reader(["en"])
-        results = reader.readtext(np.array(processed_image), detail=0)
-        extracted_text = " ".join(results)
-        # מסירה כותרות "Ingredients" שנדבקות לרכיב הראשון בלי פסיק
-        extracted_text = re.sub(r"^(?:ingredients\s*:?\s*|\d+\s+)+", "", extracted_text, flags=re.IGNORECASE)
+        started = time.time()
+        with st.spinner("מזהה טקסט מהתמונה..."):
+            extracted_text = extract_text(uploaded_image.getvalue())
+        st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
 
         st.write("הטקסט שזוהה:")
         st.text(extracted_text)
