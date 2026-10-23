@@ -66,7 +66,7 @@ def _login(page, env):
     email = env.get("DEKEL_EMAIL")
     password = env.get("DEKEL_PASSWORD")
     if not email or not password:
-        return False
+        return "no-credentials"
 
     login_field = page.locator('input[name="user_login"]:visible').first
     pass_field = page.locator('input[name="user_password"]:visible').first
@@ -79,7 +79,10 @@ def _login(page, env):
     login_btn.click(timeout=5000)
     page.wait_for_timeout(4000)
 
-    return page.locator('input[name="user_password"]:visible').count() == 0
+    if page.locator('input[name="user_password"]:visible').count() == 0:
+        return True
+    errors = [e.inner_text() for e in page.locator('[class*="error"]:visible').all()]
+    return "error: " + " / ".join(errors)[:200]
 
 
 def _debug_info(page):
@@ -169,11 +172,11 @@ def search_dekel(ingredient):
             # אם מופיע טופס התחברות - נתחבר ונחזור על החיפוש
             if page.locator('input[name="user_password"]:visible').count() > 0:
                 logged_in = _login(page, env)
-                if not logged_in:
+                if logged_in is not True:
                     return (
                         "🔒 האתר דורש התחברות כדי להציג את המידע על הרכיב, "
                         "וההתחברות האוטומטית נכשלה. ודאי ש-DEKEL_EMAIL ו-DEKEL_PASSWORD "
-                        "בקובץ .env נכונים."
+                        "מוגדרים נכון." + chr(10) + chr(10) + "[debug] login=" + str(logged_in)
                     )
 
                 context.storage_state(path=str(SESSION_PATH))
