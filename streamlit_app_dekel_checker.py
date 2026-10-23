@@ -1,3 +1,4 @@
+import html
 import os
 import re
 import subprocess
@@ -115,45 +116,56 @@ def _find_suggestion(page, ingredient):
     return None
 
 
-def _parse_ingredient_block(text, ingredient):
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-
-    start_index = -1
-    for i, line in enumerate(lines):
-        if line.lower() == ingredient.lower():
-            start_index = i
-            break
-
-    if start_index == -1:
-        return None
-
-    block = []
-    for line in lines[start_index + 1:]:
-        if line.startswith("מצאת טעות") or line.startswith("המידע באתר"):
-            break
-        block.append(line)
-        if len(block) > 30:
-            break
-
-    role_line = next((l for l in block if l.startswith(">")), "")
-
-    # מילת הדירוג היא השורה הראשונה (הקצרה) שמופיעה אחרי שורת התפקיד
-    # ואחרי "שמות נוספים לאותו הרכיב" (אם קיימת), ולפני פסקת ההסבר הארוכה
-    after_role = block[block.index(role_line) + 1:] if role_line in block else block
-    after_role = [l for l in after_role if l != "שמות נוספים לאותו הרכיב"]
-    rating_word = after_role[0] if after_role and len(after_role[0]) <= 12 else None
-
-    skip = {role_line, rating_word, "שמות נוספים לאותו הרכיב"}
-    description = "\n".join(l for l in block if l not in skip).strip()
-
-    return role_line, rating_word, description
-
-
 DICTIONARY_URL = "https://thedekel.co.il/#milonid"
+
+RATING_ALIASES = {"תלוי": "על תנאי"}
+
+# מבצע את אותן קריאות שהאתר עצמו שולח כשלוחצים על רכיב, עם הסשן המחובר של הדף
+BATCH_JS = """async (names) => {
+  const url = "/wp-admin/admin-ajax.php";
+  const post = async (data) => {
+    const r = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
+      body: new URLSearchParams(data).toString(),
+    });
+    if (!r.ok) return {error: "http " + r.status};
+    return await r.json();
+  };
+  const one = async (name) => {
+    try {
+      const term = name.split("/")[0].trim();
+      const s = await post({action: "fetch_ingredient_suggestions", search_term: term});
+      if (s.data && s.data.status === 404) return {name, notFound: true};
+      if (!Array.isArray(s.data)) return {name, error: s.error || "no-suggestions"};
+      const hit = s.data.find(x => x.name.toLowerCase() === name.toLowerCase());
+      if (!hit) return {name, notFound: true};
+      const d = await post({
+        action: "fetch_user_selected_ingredient",
+        ingredient_id: String(hit.ingredientId),
+        selected_name: hit.name,
+      });
+      if (!d.data) return {name, error: d.error || "no-detail"};
+      return {name, detail: d.data};
+    } catch (e) {
+      return {name, error: String(e)};
+    }
+  };
+  const out = [];
+  let i = 0;
+  const worker = async () => {
+    while (i < names.length) {
+      const n = names[i++];
+      out.push(await one(n));
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  return out;
+}"""
 
 
 def _result(emoji, rating, text, role=""):
-    role = role.split(":", 1)[-1].strip() if role else ""
     return {"emoji": emoji, "rating": rating, "text": text, "role": role}
 
 
@@ -163,69 +175,74 @@ def _open_dictionary(page):
     page.wait_for_timeout(4000)
 
 
-def _read_ingredient(page, ingredient):
-    parsed = None
-    for _ in range(3):
-        parsed = _parse_ingredient_block(page.locator("body").inner_text(), ingredient)
-        if parsed is not None:
-            break
-        page.wait_for_timeout(1500)
-    return parsed
+def _is_logged_in(page):
+    header = page.locator("body").inner_text()[:400]
+    return "היי," in header and "איזור אישי" not in header
 
 
-def _lookup(page, context, env, ingredient):
-    _type_search(page, ingredient)
-    suggestion = _wait_for_suggestion(page, ingredient)
+def _ensure_logged_in(page, context, env):
+    if _is_logged_in(page):
+        return True
+
+    _type_search(page, "Water")
+    suggestion = _wait_for_suggestion(page, "Water")
     if suggestion is None:
-        return _result("❓", "לא נמצא", f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל")
-
-    try:
-        suggestion.click(timeout=5000)
-    except Exception:
-        return _result("❌", "שגיאה", f"❌ לא הצלחתי ללחוץ על תוצאת החיפוש עבור: {ingredient}")
-
+        return "no-suggestions"
+    suggestion.click(timeout=5000)
     page.wait_for_timeout(2500)
 
-    # אם מופיע טופס התחברות - נתחבר ונחזור על החיפוש
     if page.locator('input[name="user_password"]:visible').count() > 0:
-        logged_in = _login(page, env)
-        if logged_in is not True:
-            return _result(
-                "🔒",
-                "נדרשת התחברות",
-                "🔒 האתר דורש התחברות כדי להציג את המידע על הרכיב, "
-                "וההתחברות האוטומטית נכשלה. ודאי ש-DEKEL_EMAIL ו-DEKEL_PASSWORD "
-                "מוגדרים נכון.",
-            )
+        outcome = _login(page, env)
+        if outcome is not True:
+            return outcome
 
-        context.storage_state(path=str(SESSION_PATH))
-        _open_dictionary(page)
-        _type_search(page, ingredient)
-        suggestion = _wait_for_suggestion(page, ingredient)
-        if suggestion is None:
-            return _result("❓", "לא נמצא", f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל")
-        suggestion.click(timeout=5000)
-        page.wait_for_timeout(2500)
+    context.storage_state(path=str(SESSION_PATH))
+    _open_dictionary(page)
+    return True if _is_logged_in(page) else "not-logged-in"
 
-    parsed = _read_ingredient(page, ingredient)
-    if parsed is None:
-        return _result("⚠️", "לא אותר", f"⚠️ לא הצלחתי לאתר מידע על \"{ingredient}\" בעמוד שנפתח")
 
-    role_line, rating_word, description = parsed
+def _plain_text(html_text):
+    text = re.sub(r"<br\s*/?>", "\n", html_text or "")
+    text = re.sub(r"<[^>]+>", "", text)
+    return html.unescape(text).strip()
 
-    if rating_word is None:
-        return _result(
-            "⚪",
-            "אין דירוג",
-            f"⚪ עדיין אין דירוג באתר דקל עבור \"{ingredient}\"\n\n{role_line}\n\n{description}",
-            role_line,
-        )
 
-    emoji = RATING_COLORS.get(rating_word, "⚪")
-    return _result(emoji, rating_word, f"{emoji} {rating_word}\n\n{role_line}\n\n{description}", role_line)
+def _to_result(item):
+    name = item["name"]
+    if item.get("notFound"):
+        return _result("❓", "לא נמצא", f"❓ הרכיב \"{name}\" לא נמצא במילון של דקל")
+    detail = item.get("detail")
+    if not detail:
+        return _result("❌", "שגיאה", f"❌ שגיאה בבדיקת \"{name}\" ({item.get('error')})")
+
+    rating = (detail.get("rating") or "").strip()
+    rating = RATING_ALIASES.get(rating, rating)
+    roles = (detail.get("functionFamilies") or "").strip()
+    description = _plain_text(detail.get("description"))
+
+    notes = []
+    if detail.get("increasesPhotoSensitivity") is True:
+        notes.append("☀️ מגביר רגישות לשמש")
+    if detail.get("contraindicatedInPregnancy") is True:
+        notes.append("🤰 לא מומלץ בהיריון")
+    if detail.get("contraindicatedWhileBreastfeeding") is True:
+        notes.append("🍼 לא מומלץ בהנקה")
+
+    role_line = f"> תפקיד עיקרי: {roles}" if roles else ""
+    body = "\n\n".join(part for part in (role_line, description, " | ".join(notes)) if part)
+
+    if not rating:
+        return _result("⚪", "אין דירוג", f"⚪ עדיין אין דירוג באתר דקל עבור \"{name}\"\n\n{body}", roles)
+
+    emoji = RATING_COLORS.get(rating, "⚪")
+    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles)
 
 
 def search_many(ingredients, on_progress=None):
+    ingredients = list(dict.fromkeys(ingredients))
+    if not ingredients:
+        return {}
+
     env = load_env()
     ensure_playwright_browser()
     results = {}
@@ -237,28 +254,32 @@ def search_many(ingredients, on_progress=None):
             page = context.new_page()
             _open_dictionary(page)
 
-            for index, ingredient in enumerate(ingredients, start=1):
-                result = None
-                for attempt in range(2):
-                    try:
-                        result = _lookup(page, context, env, ingredient)
-                        break
-                    except Exception:
-                        try:
-                            _open_dictionary(page)
-                        except Exception:
-                            pass
-                if result is None:
-                    result = _result("❌", "שגיאה", f"❌ שגיאה בבדיקת {ingredient}")
+            login = _ensure_logged_in(page, context, env)
+            if login is not True:
+                failure = _result(
+                    "🔒",
+                    "נדרשת התחברות",
+                    "🔒 האתר דורש התחברות כדי להציג את המידע על הרכיב, "
+                    "וההתחברות האוטומטית נכשלה. ודאי ש-DEKEL_EMAIL ו-DEKEL_PASSWORD "
+                    "מוגדרים נכון.",
+                )
+                return {ingredient: failure for ingredient in ingredients}
 
-                results[ingredient] = result
+            chunk = 12
+            failed = []
+            for start in range(0, len(ingredients), chunk):
+                part = ingredients[start:start + chunk]
+                for item in page.evaluate(BATCH_JS, part):
+                    if item.get("error"):
+                        failed.append(item["name"])
+                    else:
+                        results[item["name"]] = _to_result(item)
                 if on_progress:
-                    on_progress(index, len(ingredients), ingredient)
+                    on_progress(min(start + chunk, len(ingredients)), len(ingredients), part[-1])
 
-                if result["emoji"] == "🔒":
-                    for rest in ingredients[index:]:
-                        results[rest] = result
-                    break
+            if failed:
+                for item in page.evaluate(BATCH_JS, failed):
+                    results[item["name"]] = _to_result(item)
         finally:
             browser.close()
 
