@@ -96,15 +96,6 @@ def _type_search(page, ingredient):
     page.wait_for_timeout(500)
 
 
-def _debug_info(page):
-    try:
-        body = page.locator("body").inner_text()[:300].replace(chr(10), " | ")
-        count = page.locator(".suggestion-item").count()
-        return f"[debug] title={page.title()!r} url={page.url} suggestions={count} body={body}"
-    except Exception as e:
-        return f"[debug] {e}"
-
-
 def _find_suggestion(page, ingredient):
     exact = page.locator(f'.suggestion-item[data-name="{ingredient}" i]')
     if exact.count() > 0:
@@ -168,7 +159,7 @@ def search_dekel(ingredient):
 
             suggestion = _find_suggestion(page, ingredient)
             if suggestion is None:
-                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל\n\n" + _debug_info(page)
+                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל"
 
             try:
                 suggestion.click(timeout=5000)
@@ -184,7 +175,7 @@ def search_dekel(ingredient):
                     return (
                         "🔒 האתר דורש התחברות כדי להציג את המידע על הרכיב, "
                         "וההתחברות האוטומטית נכשלה. ודאי ש-DEKEL_EMAIL ו-DEKEL_PASSWORD "
-                        "מוגדרים נכון." + chr(10) + chr(10) + "[debug] login=" + str(logged_in)
+                        "מוגדרים נכון."
                     )
 
                 context.storage_state(path=str(SESSION_PATH))
@@ -196,7 +187,7 @@ def search_dekel(ingredient):
 
                 suggestion = _find_suggestion(page, ingredient)
                 if suggestion is None:
-                    return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל\n\n" + _debug_info(page)
+                    return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל"
                 suggestion.click(timeout=5000)
                 page.wait_for_timeout(3000)
 
