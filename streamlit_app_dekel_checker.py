@@ -15,77 +15,12 @@ import easyocr
 
 st.set_page_config(page_title="Dekel Checker", layout="centered")
 
-APP_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap');
-
-html, body, .stApp, .stMarkdown, p, h1, h2, h3, h4, label, button, input, textarea, table {
-    font-family: 'Heebo', 'Segoe UI', Arial, sans-serif;
-}
-
-.stApp { direction: rtl; }
-.block-container { max-width: 760px; padding-top: 2.2rem; padding-bottom: 4rem; }
-
-h1, h2, h3, h4, p, label, li,
-[data-testid="stMarkdownContainer"],
-[data-testid="stWidgetLabel"],
-[data-testid="stCaptionContainer"],
-[data-testid="stFileUploader"] section,
-[data-testid="stExpander"] summary,
-[data-testid="stAlert"] {
-    text-align: right;
-}
-
-h1 { font-weight: 700; color: #3A2F27; margin-bottom: 0.3rem; }
-h2, h3 { font-weight: 700; color: #3A2F27; }
-
-/* שדות הקלט באנגלית: כיוון LTR אבל צמודים לימין */
-[data-testid="stTextInput"] input,
-[data-testid="stTextArea"] textarea {
-    direction: ltr;
-    text-align: right;
-    border-radius: 10px;
-}
-
-/* כפתורים אחידים */
-.stButton > button, .stLinkButton > a, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
-    border-radius: 10px;
-    font-weight: 500;
-    padding: 0.45rem 1.1rem;
-}
-[data-testid="stBaseButton-primary"] { background: #6B5B4B; border-color: #6B5B4B; color: #fff; }
-[data-testid="stBaseButton-primary"]:hover { background: #55473A; border-color: #55473A; }
-
-[data-testid="stAlert"], [data-testid="stExpander"] { border-radius: 12px; }
-blockquote { border-left: 0 !important; border-right: 3px solid #CFC3B6; padding: 0 0.9rem 0 0 !important; margin: 0.4rem 0; }
-
-/* אריחי סיכום */
-.tiles { display: flex; gap: 0.7rem; margin: 0.4rem 0 1rem; }
-.tile { flex: 1; border-radius: 14px; padding: 0.7rem 0.4rem; text-align: center; }
-.tile .num { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
-.tile .lbl { font-size: 0.85rem; }
-.tile.good { background: #E3F4E7; color: #1F6B3A; }
-.tile.caution { background: #FFF1CC; color: #7A5600; }
-.tile.bad { background: #FDE2E2; color: #A32222; }
-.tile.other { background: #ECE7E1; color: #5B524A; }
-
-/* טבלת רכיבים */
-.ing-table { width: 100%; border-collapse: collapse; direction: rtl; font-size: 0.95rem; margin-bottom: 1rem; }
-.ing-table th { text-align: right; font-weight: 700; color: #6B5B4B; border-bottom: 2px solid #D9CEC3; padding: 0.5rem 0.6rem; }
-.ing-table td { text-align: right; padding: 0.5rem 0.6rem; border-bottom: 1px solid #E8DFD5; vertical-align: middle; }
-.ing-table tr:hover td { background: #F5EFE8; }
-.ing-table td.ing { direction: ltr; text-align: right; unicode-bidi: plaintext; font-weight: 500; }
-.chip { display: inline-block; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
-.chip.good { background: #E3F4E7; color: #1F6B3A; }
-.chip.caution { background: #FFF1CC; color: #7A5600; }
-.chip.bad { background: #FDE2E2; color: #A32222; }
-.chip.other { background: #ECE7E1; color: #5B524A; }
-</style>
-"""
-
 EMOJI_CLASS = {"🟢": "good", "🟡": "caution", "🔴": "bad"}
 
-st.markdown(APP_CSS, unsafe_allow_html=True)
+st.markdown(
+    f"<style>{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
+    unsafe_allow_html=True,
+)
 
 BASE_DIR = Path(__file__).parent
 ENV_PATH = BASE_DIR / ".env"
@@ -397,8 +332,19 @@ def search_dekel(ingredient):
 # UI
 # ======================
 
-st.title("🔍 בדיקת רכיבים")
-st.link_button("🌐 פתח את אתר דקל", "https://thedekel.co.il/#milonid")
+HERO_HTML = """
+<div class="hero">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <span class="spark s1">✨</span><span class="spark s2">🌸</span><span class="spark s3">✨</span>
+    <div class="badge">🌿 מדריך הרכיבים שלך</div>
+    <h1>בדיקת רכיבים</h1>
+    <p>מצלמות את רשימת הרכיבים, ומגלות מה באמת יש בתוך מוצרי הטיפוח.</p>
+    <div class="steps"><span>📸 מצלמות</span><span>🔍 בודקות</span><span>🌷 מבינות</span></div>
+</div>
+"""
+
+st.markdown(HERO_HTML, unsafe_allow_html=True)
+st.link_button("🌐 פתחי את אתר דקל", "https://thedekel.co.il/#milonid")
 
 if "ocr_ingredients_text" not in st.session_state:
     st.session_state.ocr_ingredients_text = ""
@@ -406,6 +352,15 @@ if "selected_ingredient" not in st.session_state:
     st.session_state.selected_ingredient = None
 if "results" not in st.session_state:
     st.session_state.results = {}
+
+
+def section(icon, title, subtitle=""):
+    sub = f'<div class="s">{html.escape(subtitle)}</div>' if subtitle else ""
+    st.markdown(
+        f'<div class="sec"><div class="ico">{icon}</div>'
+        f'<div><div class="t">{html.escape(title)}</div>{sub}</div></div>',
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_resource(show_spinner="טוענת מנוע זיהוי טקסט (רק בפעם הראשונה)...")
@@ -490,7 +445,7 @@ def show_summary(ingredients):
     bad = sum(r["emoji"] == "🔴" for r in results)
     other = len(results) - good - caution - bad
 
-    st.subheader("📊 סיכום")
+    section("📊", "הסיכום שלך", f"{len(results)} רכיבים נבדקו")
     st.markdown(
         '<div class="tiles">'
         f'<div class="tile good"><div class="num">{good}</div><div class="lbl">🟢 טובים</div></div>'
@@ -502,52 +457,55 @@ def show_summary(ingredients):
     )
 
     rows = "".join(
-        "<tr>"
+        f'<tr style="--i:{min(index, 14)}">'
         f'<td class="ing">{html.escape(ing)}</td>'
         f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")}">'
         f'{html.escape(r["emoji"])} {html.escape(r["rating"])}</span></td>'
         f'<td>{html.escape(r["role"])}</td>'
         "</tr>"
-        for ing, r in ((ing, st.session_state.results[ing]) for ing in checked)
+        for index, (ing, r) in enumerate((ing, st.session_state.results[ing]) for ing in checked)
     )
     st.markdown(
-        '<table class="ing-table"><thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>'
-        f"<tbody>{rows}</tbody></table>",
+        '<div class="table-wrap"><table class="ing-table">'
+        "<thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table></div>",
         unsafe_allow_html=True,
     )
 
     flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
     if flagged:
-        st.subheader("⚠️ רכיבים שדורשים תשומת לב")
+        section("🌼", "כדאי לשים לב", "רכיבים שמסומנים כ'על תנאי' או 'רע'")
         for ing in flagged:
             r = st.session_state.results[ing]
             with st.expander(f"{r['emoji']} {ing} - {r['rating']}"):
                 st.write(r["text"])
 
 
-st.subheader("📸 חיפוש לפי תמונת רכיבים")
+with st.container(border=True):
+    section("📸", "צילום של רשימת הרכיבים", "מעלות תמונה ברורה של הרכיבים מאחורי האריזה")
+    uploaded_image = st.file_uploader(
+        "העלי תמונה של רשימת רכיבים", type=["jpg", "jpeg", "png"], label_visibility="collapsed"
+    )
 
-uploaded_image = st.file_uploader("העלי תמונה של רשימת רכיבים", type=["jpg", "jpeg", "png"])
+    if uploaded_image:
+        image = Image.open(uploaded_image)
+        st.image(image, caption="התמונה שהועלתה", width="stretch")
 
-if uploaded_image:
-    image = Image.open(uploaded_image)
-    st.image(image, caption="התמונה שהועלתה", width="stretch")
+        if st.button("✨ חלצי את הרכיבים מהתמונה"):
+            started = time.time()
+            with st.spinner("קוראת את הטקסט מהתמונה..."):
+                extracted_text = extract_text(uploaded_image.getvalue())
+            st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
 
-    if st.button("חלץ רכיבים מהתמונה"):
-        started = time.time()
-        with st.spinner("מזהה טקסט מהתמונה..."):
-            extracted_text = extract_text(uploaded_image.getvalue())
-        st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
+            with st.expander("הטקסט הגולמי שזוהה"):
+                st.code(extracted_text, language=None, wrap_lines=True)
 
-        with st.expander("הטקסט הגולמי שזוהה"):
-            st.code(extracted_text, language=None, wrap_lines=True)
+            ingredients = split_ingredients(extracted_text.replace(";", ","))
+            st.session_state.ocr_ingredients_text = "\n".join(ingredients)
 
-        ingredients = split_ingredients(extracted_text.replace(";", ","))
-        st.session_state.ocr_ingredients_text = "\n".join(ingredients)
-
-    if st.session_state.ocr_ingredients_text:
-        st.subheader("רכיבים שזוהו:")
-        st.caption("ה-OCR לא תמיד מדויק - אפשר לתקן כאן את הרשימה (רכיב אחד בכל שורה) לפני הבדיקה")
+if uploaded_image and st.session_state.ocr_ingredients_text:
+    with st.container(border=True):
+        section("📝", "הרכיבים שזוהו", "ה-OCR לא תמיד מדויק, אפשר לתקן כאן (רכיב אחד בכל שורה)")
         st.session_state.ocr_ingredients_text = st.text_area(
             "רשימת רכיבים לעריכה",
             value=st.session_state.ocr_ingredients_text,
@@ -557,24 +515,30 @@ if uploaded_image:
 
         ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
 
-        if st.button(f"✅ בדוק את כל הרכיבים ({len(ingredient_list)})", type="primary"):
+        if st.button(f"🌸 בדקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
             check_all(ingredient_list)
 
         show_summary(ingredient_list)
 
         with st.expander("בדיקה של רכיב בודד"):
             for ing in ingredient_list:
-                if st.button(f"בדוק {ing}", key=f"img_{ing}"):
+                if st.button(f"בדקי {ing}", key=f"img_{ing}"):
                     st.session_state.selected_ingredient = ing
 
 if st.session_state.selected_ingredient:
     show_result(st.session_state.selected_ingredient)
 
-st.subheader("🔎 חיפוש רכיב ידני")
-ingredient_name = st.text_input("הכניסי רכיב:")
+with st.container(border=True):
+    section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
+    ingredient_name = st.text_input("הכניסי רכיב:", label_visibility="collapsed", placeholder="Niacinamide")
 
-if st.button("חפש רכיב"):
-    if ingredient_name.strip():
-        show_result(ingredient_name.strip())
-    else:
-        st.warning("נא להזין שם רכיב")
+    if st.button("חפשי רכיב"):
+        if ingredient_name.strip():
+            show_result(ingredient_name.strip())
+        else:
+            st.warning("נא להזין שם רכיב")
+
+st.markdown(
+    '<div class="footer">נוצר באהבה 🌸 · המידע מבוסס על מילון הרכיבים של דקל</div>',
+    unsafe_allow_html=True,
+)

@@ -1,0 +1,362 @@
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap');
+
+:root {
+    --ink: #3B2F35;
+    --muted: #8C7A83;
+    --rose: #D9809B;
+    --rose-deep: #B8527A;
+    --rose-soft: #F7DCE3;
+    --cream: #FFF9F6;
+    --blush: #FDEFF2;
+    --lavender: #F1ECFA;
+    --sage: #8FB9A0;
+    --line: rgba(217, 128, 155, 0.22);
+    --shadow: 0 10px 32px rgba(184, 82, 122, 0.10);
+    --shadow-hover: 0 14px 38px rgba(184, 82, 122, 0.18);
+}
+
+/* ---------- בסיס ---------- */
+html, body, .stApp, .stMarkdown, p, h1, h2, h3, h4, label, button, input, textarea, table {
+    font-family: 'Heebo', 'Segoe UI', Arial, sans-serif;
+}
+
+.stApp {
+    direction: rtl;
+    color: var(--ink);
+    background:
+        radial-gradient(1000px 520px at 85% -8%, #FBE3EA 0%, transparent 60%),
+        radial-gradient(900px 520px at 5% 8%, #ECE6F8 0%, transparent 60%),
+        radial-gradient(900px 600px at 50% 110%, #E3F1E9 0%, transparent 60%),
+        var(--cream);
+    background-attachment: fixed;
+}
+
+/* כדורי אור צפים ברקע */
+.stApp::before, .stApp::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 0;
+}
+.stApp::before {
+    width: 340px; height: 340px; top: 12%; left: -90px;
+    background: #F6C9D6;
+    animation: floaty 16s ease-in-out infinite;
+}
+.stApp::after {
+    width: 300px; height: 300px; bottom: 6%; right: -80px;
+    background: #CFE6D8;
+    animation: floaty 19s ease-in-out infinite reverse;
+}
+
+[data-testid="stHeader"] { background: transparent; }
+[data-testid="stAppDeployButton"] { display: none; }
+
+.block-container {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    padding-top: 1.6rem;
+    padding-bottom: 4rem;
+}
+
+::selection { background: var(--rose-soft); color: var(--ink); }
+
+h1, h2, h3, h4, p, label, li,
+[data-testid="stMarkdownContainer"],
+[data-testid="stWidgetLabel"],
+[data-testid="stCaptionContainer"],
+[data-testid="stFileUploader"] section,
+[data-testid="stExpander"] summary,
+[data-testid="stAlert"] {
+    text-align: right;
+}
+
+[data-testid="stCaptionContainer"] { color: var(--muted); }
+
+/* ---------- אנימציות ---------- */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes pop {
+    0%   { opacity: 0; transform: scale(0.8); }
+    70%  { transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes floaty {
+    0%, 100% { transform: translate(0, 0); }
+    50%      { transform: translate(24px, -30px); }
+}
+@keyframes shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@keyframes twinkle {
+    0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
+    50%      { opacity: 1;    transform: scale(1.15) rotate(12deg); }
+}
+
+[data-testid="stElementContainer"] { animation: fadeUp 0.6s ease both; }
+
+/* ---------- כותרת פותחת ---------- */
+.hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    padding: 2rem 1.8rem 1.6rem;
+    margin-bottom: 0.4rem;
+    background: linear-gradient(135deg, #FFF3F6 0%, #F8E6EE 45%, #EEE8FA 100%);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+}
+.hero .blob { position: absolute; border-radius: 50%; filter: blur(8px); opacity: 0.7; }
+.hero .blob.b1 { width: 170px; height: 170px; top: -50px; left: -40px; background: #F7C6D4; animation: floaty 11s ease-in-out infinite; }
+.hero .blob.b2 { width: 120px; height: 120px; bottom: -40px; left: 30%; background: #D7EBDF; animation: floaty 14s ease-in-out infinite reverse; }
+.hero .spark { position: absolute; font-size: 1.3rem; animation: twinkle 3.6s ease-in-out infinite; }
+.hero .spark.s1 { top: 18px; left: 22%; }
+.hero .spark.s2 { top: 54%; left: 9%; animation-delay: 1.2s; font-size: 1rem; }
+.hero .spark.s3 { top: 22%; left: 40%; animation-delay: 2.1s; font-size: 0.9rem; }
+.hero > * { position: relative; }
+.hero .badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--rose-deep);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.18rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 0.7rem;
+}
+.hero h1 {
+    margin: 0 0 0.3rem;
+    padding: 0;
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.15;
+    background: linear-gradient(90deg, #B8527A, #D9809B 55%, #8D6BB8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.hero p { margin: 0 0 1rem; color: #6E5A64; font-size: 1.05rem; }
+.hero .steps { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.hero .steps span {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 999px;
+    padding: 0.3rem 0.95rem;
+    font-size: 0.9rem;
+    color: var(--ink);
+    box-shadow: 0 4px 12px rgba(184, 82, 122, 0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hero .steps span:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(184, 82, 122, 0.16); }
+
+/* ---------- כרטיסים ---------- */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--line) !important;
+    border-radius: 24px !important;
+    box-shadow: var(--shadow);
+    padding: 0.6rem 0.5rem;
+    transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: var(--shadow-hover); }
+
+.sec { display: flex; align-items: center; gap: 0.75rem; margin: 0.2rem 0 0.6rem; }
+.sec .ico {
+    flex: none;
+    width: 2.6rem; height: 2.6rem;
+    display: grid; place-items: center;
+    font-size: 1.35rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #FDE7EE, #EFE7FA);
+    box-shadow: 0 6px 14px rgba(184, 82, 122, 0.12);
+}
+.sec .t { font-size: 1.28rem; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.sec .s { font-size: 0.88rem; color: var(--muted); }
+
+/* ---------- קלט ---------- */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    direction: ltr;
+    text-align: right;
+    border-radius: 14px;
+    background: #FFFDFD;
+    border: 1.5px solid #F0D5DD;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+    border-color: var(--rose);
+    box-shadow: 0 0 0 4px rgba(217, 128, 155, 0.18);
+}
+[data-testid="stTextInput"] > div > div, [data-testid="stTextArea"] > div > div { border-radius: 14px; }
+
+[data-testid="stFileUploaderDropzone"] {
+    border: 2px dashed #E8B4C4;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #FFF7F9, #F7F2FD);
+    transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: var(--rose);
+    background: linear-gradient(135deg, #FFEFF4, #F1EAFB);
+    transform: translateY(-2px);
+}
+
+[data-testid="stImage"] img {
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(59, 47, 53, 0.14);
+}
+
+/* ---------- כפתורים ---------- */
+.stButton > button, .stLinkButton > a,
+[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"],
+[data-testid="stBaseLinkButton-secondary"] {
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.5rem 1.4rem;
+    border: 1.5px solid #EBC3CF;
+    background: #fff;
+    color: var(--rose-deep);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.stButton > button:hover, .stLinkButton > a:hover,
+[data-testid="stBaseButton-secondary"]:hover, [data-testid="stBaseLinkButton-secondary"]:hover {
+    background: var(--blush);
+    border-color: var(--rose);
+    color: var(--rose-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(184, 82, 122, 0.18);
+}
+.stButton > button:active { transform: translateY(0) scale(0.98); }
+
+.stButton > button[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #D9809B 0%, #B8527A 100%);
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(184, 82, 122, 0.32);
+}
+.stButton > button[data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #E08FA9 0%, #C2608A 100%);
+    color: #fff;
+    box-shadow: 0 12px 26px rgba(184, 82, 122, 0.42);
+}
+
+/* ---------- סרגל התקדמות ---------- */
+[data-baseweb="progress-bar"] { transform: scaleX(-1); }
+[data-baseweb="progress-bar"] > div > div {
+    background: rgba(217, 128, 155, 0.18) !important;
+    border-radius: 999px;
+    overflow: hidden;
+}
+[data-baseweb="progress-bar"] > div > div > div {
+    background: linear-gradient(90deg, #E8A0B5, #B8527A, #8D6BB8, #E8A0B5) !important;
+    background-size: 200% 100% !important;
+    animation: shimmer 2.2s linear infinite;
+    border-radius: 999px;
+}
+[data-testid="stSpinner"] { color: var(--rose-deep); }
+
+/* ---------- הודעות ותוצאות ---------- */
+[data-testid="stAlert"] {
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 18px rgba(59, 47, 53, 0.06);
+    animation: fadeUp 0.5s ease both;
+}
+blockquote {
+    border-left: 0 !important;
+    border-right: 3px solid #E8B4C4;
+    padding: 0 0.9rem 0 0 !important;
+    margin: 0.4rem 0;
+}
+
+[data-testid="stExpander"] {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--line);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+[data-testid="stExpander"]:hover { box-shadow: 0 8px 22px rgba(184, 82, 122, 0.12); }
+[data-testid="stExpander"] summary { font-weight: 500; }
+
+/* ---------- אריחי סיכום ---------- */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; margin: 0.3rem 0 1rem; }
+.tile {
+    border-radius: 20px;
+    padding: 0.9rem 0.4rem 0.75rem;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(59, 47, 53, 0.07);
+    animation: pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: transform 0.25s ease;
+}
+.tile:hover { transform: translateY(-4px) scale(1.03); }
+.tile:nth-child(2) { animation-delay: 0.08s; }
+.tile:nth-child(3) { animation-delay: 0.16s; }
+.tile:nth-child(4) { animation-delay: 0.24s; }
+.tile .num { font-size: 2.2rem; font-weight: 800; line-height: 1.05; }
+.tile .lbl { font-size: 0.85rem; font-weight: 500; opacity: 0.9; }
+.tile.good    { background: linear-gradient(145deg, #EAF7EF, #D3ECDD); color: #2B6A4A; }
+.tile.caution { background: linear-gradient(145deg, #FFF4E4, #FFE5C6); color: #8A5A1B; }
+.tile.bad     { background: linear-gradient(145deg, #FEEAEF, #F9D2DC); color: #A33452; }
+.tile.other   { background: linear-gradient(145deg, #F4F0FB, #E4DCF3); color: #5B4A86; }
+
+/* ---------- טבלה ---------- */
+.table-wrap {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(59, 47, 53, 0.06);
+    margin-bottom: 1rem;
+}
+.ing-table { width: 100%; border-collapse: collapse; direction: rtl; font-size: 0.95rem; }
+.ing-table th {
+    text-align: right;
+    font-weight: 700;
+    color: var(--rose-deep);
+    background: linear-gradient(90deg, #FDF0F4, #F6F0FC);
+    padding: 0.65rem 0.8rem;
+}
+.ing-table td { text-align: right; padding: 0.6rem 0.8rem; border-top: 1px solid #F4E7EC; vertical-align: middle; }
+.ing-table tbody tr { animation: fadeUp 0.5s ease both; animation-delay: calc(var(--i, 0) * 45ms); transition: background 0.2s ease; }
+.ing-table tbody tr:hover { background: #FFF6F9; }
+.ing-table td.ing { direction: ltr; text-align: right; unicode-bidi: plaintext; font-weight: 500; }
+
+.chip {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.14rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: transform 0.2s ease;
+}
+.chip:hover { transform: scale(1.08); }
+.chip.good    { background: #E3F4EA; color: #2B6A4A; }
+.chip.caution { background: #FFEBD2; color: #8A5A1B; }
+.chip.bad     { background: #FBDAE2; color: #A33452; }
+.chip.other   { background: #ECE6F7; color: #5B4A86; }
+
+.footer { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 1.6rem; }
+
+/* ---------- רספונסיבי ---------- */
+@media (max-width: 640px) {
+    .hero { padding: 1.5rem 1.2rem 1.2rem; border-radius: 24px; }
+    .hero h1 { font-size: 2rem; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- נגישות: בלי תנועה למי שביקשה ---------- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}
