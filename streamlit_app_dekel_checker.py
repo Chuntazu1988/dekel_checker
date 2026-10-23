@@ -82,6 +82,15 @@ def _login(page, env):
     return page.locator('input[name="user_password"]:visible').count() == 0
 
 
+def _debug_info(page):
+    try:
+        body = page.locator("body").inner_text()[:300].replace(chr(10), " | ")
+        count = page.locator(".suggestion-item").count()
+        return f"[debug] title={page.title()!r} url={page.url} suggestions={count} body={body}"
+    except Exception as e:
+        return f"[debug] {e}"
+
+
 def _find_suggestion(page, ingredient):
     exact = page.locator(f'.suggestion-item[data-name="{ingredient}" i]')
     if exact.count() > 0:
@@ -148,7 +157,9 @@ def search_dekel(ingredient):
 
             suggestion = _find_suggestion(page, ingredient)
             if suggestion is None:
-                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל"
+                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל
+
+" + _debug_info(page)
 
             try:
                 suggestion.click(timeout=5000)
@@ -176,7 +187,7 @@ def search_dekel(ingredient):
 
                 suggestion = _find_suggestion(page, ingredient)
                 if suggestion is None:
-                    return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל"
+                    return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל\n\n" + _debug_info(page)
                 suggestion.click(timeout=5000)
                 page.wait_for_timeout(3000)
 
