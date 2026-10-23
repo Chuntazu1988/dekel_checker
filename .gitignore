@@ -1,0 +1,5 @@
+.env
+dekel_session.json
+__pycache__/
+*.pyc
+desktop.ini
