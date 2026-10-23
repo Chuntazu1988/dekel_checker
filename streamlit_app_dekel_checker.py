@@ -157,9 +157,7 @@ def search_dekel(ingredient):
 
             suggestion = _find_suggestion(page, ingredient)
             if suggestion is None:
-                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל
-
-" + _debug_info(page)
+                return f"❓ הרכיב \"{ingredient}\" לא נמצא במילון של דקל\n\n" + _debug_info(page)
 
             try:
                 suggestion.click(timeout=5000)
