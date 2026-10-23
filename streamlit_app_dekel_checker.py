@@ -85,6 +85,17 @@ def _login(page, env):
     return "error: " + " / ".join(errors)[:200]
 
 
+def _type_search(page, ingredient):
+    search_box = page.locator('input[type="search"]:visible').first
+    search_box.click()
+    search_box.fill(ingredient)
+    try:
+        page.wait_for_selector(".suggestion-item", state="visible", timeout=12000)
+    except Exception:
+        pass
+    page.wait_for_timeout(500)
+
+
 def _debug_info(page):
     try:
         body = page.locator("body").inner_text()[:300].replace(chr(10), " | ")
@@ -153,10 +164,7 @@ def search_dekel(ingredient):
             page.goto("https://thedekel.co.il/#milonid", timeout=30000)
             page.wait_for_timeout(4000)
 
-            search_box = page.locator('input[type="search"]:visible').first
-            search_box.click()
-            search_box.fill(ingredient)
-            page.wait_for_timeout(2000)
+            _type_search(page, ingredient)
 
             suggestion = _find_suggestion(page, ingredient)
             if suggestion is None:
@@ -181,10 +189,10 @@ def search_dekel(ingredient):
 
                 context.storage_state(path=str(SESSION_PATH))
 
-                search_box = page.locator('input[type="search"]:visible').first
-                search_box.click()
-                search_box.fill(ingredient)
-                page.wait_for_timeout(2000)
+                page.goto("https://thedekel.co.il/#milonid", timeout=30000)
+                page.reload()
+                page.wait_for_timeout(4000)
+                _type_search(page, ingredient)
 
                 suggestion = _find_suggestion(page, ingredient)
                 if suggestion is None:
