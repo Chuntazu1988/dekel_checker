@@ -15,6 +15,78 @@ import easyocr
 
 st.set_page_config(page_title="Dekel Checker", layout="centered")
 
+APP_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap');
+
+html, body, .stApp, .stMarkdown, p, h1, h2, h3, h4, label, button, input, textarea, table {
+    font-family: 'Heebo', 'Segoe UI', Arial, sans-serif;
+}
+
+.stApp { direction: rtl; }
+.block-container { max-width: 760px; padding-top: 2.2rem; padding-bottom: 4rem; }
+
+h1, h2, h3, h4, p, label, li,
+[data-testid="stMarkdownContainer"],
+[data-testid="stWidgetLabel"],
+[data-testid="stCaptionContainer"],
+[data-testid="stFileUploader"] section,
+[data-testid="stExpander"] summary,
+[data-testid="stAlert"] {
+    text-align: right;
+}
+
+h1 { font-weight: 700; color: #3A2F27; margin-bottom: 0.3rem; }
+h2, h3 { font-weight: 700; color: #3A2F27; }
+
+/* שדות הקלט באנגלית: כיוון LTR אבל צמודים לימין */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    direction: ltr;
+    text-align: right;
+    border-radius: 10px;
+}
+
+/* כפתורים אחידים */
+.stButton > button, .stLinkButton > a, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
+    border-radius: 10px;
+    font-weight: 500;
+    padding: 0.45rem 1.1rem;
+}
+[data-testid="stBaseButton-primary"] { background: #6B5B4B; border-color: #6B5B4B; color: #fff; }
+[data-testid="stBaseButton-primary"]:hover { background: #55473A; border-color: #55473A; }
+
+[data-testid="stAlert"], [data-testid="stExpander"] { border-radius: 12px; }
+blockquote { border-left: 0 !important; border-right: 3px solid #CFC3B6; padding: 0 0.9rem 0 0 !important; margin: 0.4rem 0; }
+
+/* אריחי סיכום */
+.tiles { display: flex; gap: 0.7rem; margin: 0.4rem 0 1rem; }
+.tile { flex: 1; border-radius: 14px; padding: 0.7rem 0.4rem; text-align: center; }
+.tile .num { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.tile .lbl { font-size: 0.85rem; }
+.tile.good { background: #E3F4E7; color: #1F6B3A; }
+.tile.caution { background: #FFF1CC; color: #7A5600; }
+.tile.bad { background: #FDE2E2; color: #A32222; }
+.tile.other { background: #ECE7E1; color: #5B524A; }
+
+/* טבלת רכיבים */
+.ing-table { width: 100%; border-collapse: collapse; direction: rtl; font-size: 0.95rem; margin-bottom: 1rem; }
+.ing-table th { text-align: right; font-weight: 700; color: #6B5B4B; border-bottom: 2px solid #D9CEC3; padding: 0.5rem 0.6rem; }
+.ing-table td { text-align: right; padding: 0.5rem 0.6rem; border-bottom: 1px solid #E8DFD5; vertical-align: middle; }
+.ing-table tr:hover td { background: #F5EFE8; }
+.ing-table td.ing { direction: ltr; text-align: right; unicode-bidi: plaintext; font-weight: 500; }
+.chip { display: inline-block; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.chip.good { background: #E3F4E7; color: #1F6B3A; }
+.chip.caution { background: #FFF1CC; color: #7A5600; }
+.chip.bad { background: #FDE2E2; color: #A32222; }
+.chip.other { background: #ECE7E1; color: #5B524A; }
+</style>
+"""
+
+EMOJI_CLASS = {"🟢": "good", "🟡": "caution", "🔴": "bad"}
+
+st.markdown(APP_CSS, unsafe_allow_html=True)
+
 BASE_DIR = Path(__file__).parent
 ENV_PATH = BASE_DIR / ".env"
 SESSION_PATH = BASE_DIR / "dekel_session.json"
@@ -419,23 +491,29 @@ def show_summary(ingredients):
     other = len(results) - good - caution - bad
 
     st.subheader("📊 סיכום")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🟢 טובים", good)
-    c2.metric("🟡 על תנאי", caution)
-    c3.metric("🔴 רעים", bad)
-    c4.metric("⚪ אחר", other)
+    st.markdown(
+        '<div class="tiles">'
+        f'<div class="tile good"><div class="num">{good}</div><div class="lbl">🟢 טובים</div></div>'
+        f'<div class="tile caution"><div class="num">{caution}</div><div class="lbl">🟡 על תנאי</div></div>'
+        f'<div class="tile bad"><div class="num">{bad}</div><div class="lbl">🔴 רעים</div></div>'
+        f'<div class="tile other"><div class="num">{other}</div><div class="lbl">⚪ אחר</div></div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    st.dataframe(
-        [
-            {
-                "רכיב": ing,
-                "דירוג": f"{st.session_state.results[ing]['emoji']} {st.session_state.results[ing]['rating']}",
-                "תפקיד": st.session_state.results[ing]["role"],
-            }
-            for ing in checked
-        ],
-        width="stretch",
-        hide_index=True,
+    rows = "".join(
+        "<tr>"
+        f'<td class="ing">{html.escape(ing)}</td>'
+        f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")}">'
+        f'{html.escape(r["emoji"])} {html.escape(r["rating"])}</span></td>'
+        f'<td>{html.escape(r["role"])}</td>'
+        "</tr>"
+        for ing, r in ((ing, st.session_state.results[ing]) for ing in checked)
+    )
+    st.markdown(
+        '<table class="ing-table"><thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>",
+        unsafe_allow_html=True,
     )
 
     flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
@@ -461,8 +539,8 @@ if uploaded_image:
             extracted_text = extract_text(uploaded_image.getvalue())
         st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
 
-        st.write("הטקסט שזוהה:")
-        st.text(extracted_text)
+        with st.expander("הטקסט הגולמי שזוהה"):
+            st.code(extracted_text, language=None, wrap_lines=True)
 
         ingredients = split_ingredients(extracted_text.replace(";", ","))
         st.session_state.ocr_ingredients_text = "\n".join(ingredients)
