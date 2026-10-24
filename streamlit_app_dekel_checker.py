@@ -511,8 +511,8 @@ def _tokens(text):
 
 @st.cache_data(show_spinner=False)
 def ocr_lines(image_bytes):
-    image = Image.open(io.BytesIO(image_bytes))
-    result = get_ocr_reader().readtext(np.array(preprocess_for_ocr(image)), detail=1)
+    image = open_image(io.BytesIO(image_bytes))
+    result = get_ocr_reader().readtext(np.array(preprocess_for_ocr(image)), detail=1, canvas_size=MAX_OCR_SIDE)
     lines = []
     for box, text, confidence in result:
         ys = [point[1] for point in box]
@@ -910,19 +910,46 @@ def get_ocr_reader():
 
 @st.cache_data(show_spinner=False)
 def extract_text(image_bytes):
-    image = Image.open(io.BytesIO(image_bytes))
+    image = open_image(io.BytesIO(image_bytes))
     processed_image = preprocess_for_ocr(image)
-    results = get_ocr_reader().readtext(np.array(processed_image), detail=0)
+    results = get_ocr_reader().readtext(np.array(processed_image), detail=0, canvas_size=MAX_OCR_SIDE)
     extracted_text = " ".join(results)
     # מסירה כותרות "Ingredients" שנדבקות לרכיב הראשון בלי פסיק
-    return re.sub(r"^(?:ingredients\s*:?\s*|\d+\s+)+", "", extracted_text, flags=re.IGNORECASE)
+    return re.sub(
+        r"^[\W_]*(?:(?:ingredients?|ingr[eé]dients?)[\s:/]*|\d+\s+)*",
+        "",
+        extracted_text,
+        flags=re.IGNORECASE,
+    )
+
+
+MAX_OCR_SIDE = 1920
+
+
+def open_image(source):
+    """פותחת תמונה (גם גדולה מהטלפון), מיישרת לפי EXIF ומקטינה לגודל בטוח לזיכרון."""
+    image = Image.open(source)
+    image = ImageOps.exif_transpose(image).convert("RGB")
+    longest = max(image.size)
+    if longest > MAX_OCR_SIDE * 1.25:
+        scale = MAX_OCR_SIDE / longest
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
+    return image
+
+
+def preview_image(image):
+    preview = image.copy()
+    preview.thumbnail((1200, 1200))
+    return preview
 
 
 def preprocess_for_ocr(image):
-    # הגדלת רזולוציה + ניגודיות + חידוד עוזרות ל-OCR לתפוס פסיקים
-    # קטנים שהוא נוטה לפספס בגבולות בין אזורי טקסט
-    scale = 2
-    image = image.convert("RGB").resize((image.width * scale, image.height * scale), Image.LANCZOS)
+    # גודל אחיד וחסום (עד MAX_OCR_SIDE) + ניגודיות + חידוד: עוזרים ל-OCR לתפוס פסיקים
+    # קטנים בלי לנפח את הזיכרון בתמונות גדולות מהטלפון
+    image = image.convert("RGB")
+    scale = min(2.0, MAX_OCR_SIDE / max(image.size))
+    if abs(scale - 1) > 0.05:
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
     image = ImageOps.grayscale(image)
     image = ImageOps.autocontrast(image, cutoff=1)
     image = image.filter(ImageFilter.SHARPEN)
@@ -1281,7 +1308,7 @@ with st.container(border=True):
         )
         st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: Upload ואז 'צילום'.")
         if product_photo:
-            st.image(Image.open(product_photo), caption="תמונת המוצר", width="stretch")
+            st.image(preview_image(open_image(product_photo)), caption="תמונת המוצר", width="stretch")
             if st.button("🔎 זהי את המוצר"):
                 identify_product(product_photo.getvalue())
         render_candidates()
@@ -1295,8 +1322,7 @@ with st.container(border=True):
         st.caption("📱 בטלפון: לוחצים על Upload ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
 
         if uploaded_image:
-            image = Image.open(uploaded_image)
-            st.image(image, caption="התמונה שהועלתה", width="stretch")
+            st.image(preview_image(open_image(uploaded_image)), caption="התמונה שהועלתה", width="stretch")
 
             if st.button("✨ סרקי את הרכיבים מהתמונה"):
                 started = time.time()
