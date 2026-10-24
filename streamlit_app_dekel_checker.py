@@ -1,12 +1,14 @@
 import html
 import io
+import json
 import os
 import re
 import subprocess
 import sys
 import time
-from urllib.parse import quote
+import urllib.request
 from pathlib import Path
+from urllib.parse import quote, urlencode
 
 import numpy as np
 import streamlit as st
@@ -344,15 +346,56 @@ PRODUCTS_JS = """async (term) => {
   return await r.json();
 }"""
 
+FIND_PRODUCTS_JS = """async (queries) => {
+  const base = "/wp-admin/admin-ajax.php?action=get_product_suggestions&searchTerm=";
+  const one = async (q) => {
+    try {
+      const r = await fetch(base + encodeURIComponent(q), {credentials: "same-origin"});
+      if (!r.ok) return [];
+      const j = await r.json();
+      return Array.isArray(j.data) ? j.data : [];
+    } catch (e) { return []; }
+  };
+  const lists = [];
+  let i = 0;
+  const worker = async () => { while (i < queries.length) { lists.push(await one(queries[i++])); } };
+  await Promise.all([worker(), worker(), worker()]);
+  const seen = {};
+  const merged = [];
+  for (const list of lists) {
+    for (const item of list) {
+      if (item.slug && !seen[item.slug]) { seen[item.slug] = 1; merged.push(item); }
+    }
+  }
+  return merged;
+}"""
+
+PRODUCT_PAGE_JS = """async (slug) => {
+  const r = await fetch("/product-verified/?slug=" + encodeURIComponent(slug), {credentials: "same-origin"});
+  return await r.text();
+}"""
+
+STOPWORDS = {"the", "and", "for", "of", "with", "to", "in", "a", "de", "la", "le", "et", "pour"}
+
 
 def _clean(value):
     value = (value or "").strip()
     return "" if value in ("None", "null") else value
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def search_products(term):
-    """מחפשת תכשירים בקטלוג של דקל. שגיאות לא נשמרות במטמון."""
+def _product_from_item(item):
+    return {
+        "name": _clean(item.get("primaryName")),
+        "name2": _clean(item.get("secondaryName")),
+        "company": _clean(item.get("companyName")),
+        "description": _plain_text(item.get("description")),
+        "slug": _clean(item.get("slug")),
+        "picture": _clean(item.get("productPicture")),
+        "verified": str(item.get("verified")).lower() == "true",
+    }
+
+
+def _with_logged_in_page(callback):
     env = load_env()
     ensure_playwright_browser()
 
@@ -363,30 +406,152 @@ def search_products(term):
             page = context.new_page()
             _open_dictionary(page)
 
-            login = _ensure_logged_in(page, context, env)
-            if login is not True:
+            if _ensure_logged_in(page, context, env) is not True:
                 raise RuntimeError("login")
 
-            response = page.evaluate(PRODUCTS_JS, term)
+            return callback(page)
         finally:
             browser.close()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def search_products(term):
+    """מחפשת תכשירים בקטלוג של דקל. שגיאות לא נשמרות במטמון."""
+    response = _with_logged_in_page(lambda page: page.evaluate(PRODUCTS_JS, term))
 
     items = response.get("data") if isinstance(response, dict) else None
     if not isinstance(items, list):
         raise RuntimeError("bad-response")
+    return [_product_from_item(item) for item in items]
 
-    return [
-        {
-            "name": _clean(item.get("primaryName")),
-            "name2": _clean(item.get("secondaryName")),
-            "company": _clean(item.get("companyName")),
-            "description": _plain_text(item.get("description")),
-            "slug": _clean(item.get("slug")),
-            "picture": _clean(item.get("productPicture")),
-            "verified": str(item.get("verified")).lower() == "true",
-        }
-        for item in items
-    ]
+
+def find_products(queries):
+    items = _with_logged_in_page(lambda page: page.evaluate(FIND_PRODUCTS_JS, queries))
+    return [_product_from_item(item) for item in items or []]
+
+
+def _extract_json_array(page_html, key):
+    start = page_html.find(f'"{key}":[')
+    if start < 0:
+        return None
+    begin = page_html.find("[", start)
+    depth = 0
+    for position in range(begin, len(page_html)):
+        char = page_html[position]
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(page_html[begin:position + 1])
+                except ValueError:
+                    return None
+    return None
+
+
+def load_product_ingredients(slug):
+    """מביאה את רשימת הרכיבים המלאה, כולל הדירוגים, מעמוד המוצר של דקל."""
+    page_html = _with_logged_in_page(lambda page: page.evaluate(PRODUCT_PAGE_JS, slug))
+    records = _extract_json_array(page_html, "ingredientsInTheList")
+    if not records:
+        raise RuntimeError("no-ingredients")
+
+    names, results = [], {}
+    for record in records:
+        name = (record.get("name") or "").strip()
+        if name and name not in results:
+            names.append(name)
+            results[name] = _to_result({"name": name, "detail": record})
+    return names, results
+
+
+def _tokens(text):
+    return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOPWORDS]
+
+
+@st.cache_data(show_spinner=False)
+def ocr_lines(image_bytes):
+    image = Image.open(io.BytesIO(image_bytes))
+    result = get_ocr_reader().readtext(np.array(preprocess_for_ocr(image)), detail=1)
+    lines = []
+    for box, text, confidence in result:
+        ys = [point[1] for point in box]
+        lines.append((text.strip(), float(confidence), float(max(ys) - min(ys)), float(sum(ys) / len(ys))))
+    return lines
+
+
+def build_queries(lines):
+    cleaned = []
+    for text, confidence, height, y in lines:
+        text = re.sub(r"[^A-Za-z0-9%&+.\- ]", " ", text)
+        text = re.sub(r"\s+", " ", text).strip(" .-:")
+        if confidence >= 0.45 and len(text) >= 3 and re.search(r"[A-Za-z]{3}", text):
+            cleaned.append((text, height, y))
+    if not cleaned:
+        return []
+
+    cleaned.sort(key=lambda item: item[2])
+    biggest = {text for text, _, _ in sorted(cleaned, key=lambda item: -item[1])[:6]}
+    ordered = [text for text, _, _ in cleaned if text in biggest]
+
+    # קודם צירופים (הכי ממוקדים), ואחר כך שורות בודדות
+    queries = []
+    if len(ordered) >= 3:
+        queries.append(" ".join(ordered[:3]))
+    queries += [f"{a} {b}" for a, b in zip(ordered, ordered[1:])]
+    queries += ordered
+
+    unique, seen = [], set()
+    for query in queries:
+        if len(query) >= 5 and query.lower() not in seen:
+            seen.add(query.lower())
+            unique.append(query)
+    return unique[:6]
+
+
+def rank_products(products, lines):
+    seen_tokens = set()
+    for text, confidence, _, _ in lines:
+        if confidence >= 0.4:
+            seen_tokens.update(_tokens(text))
+
+    scored = []
+    for product in products:
+        english_company = product["company"].split("|")[-1]
+        candidate = set(_tokens(f"{product['name']} {english_company} {product['name2']}"))
+        if not candidate:
+            continue
+        matched = len(candidate & seen_tokens)
+        if matched >= 2 or (matched == 1 and len(candidate) <= 2):
+            scored.append((matched - 0.25 * (len(candidate) - matched), product))
+
+    scored.sort(key=lambda item: -item[0])
+    return [product for _, product in scored[:5]]
+
+
+def search_open_beauty_facts(query):
+    params = urlencode({
+        "search_terms": query, "search_simple": 1, "action": "process", "json": 1,
+        "page_size": 8, "fields": "code,product_name,brands,ingredients_text",
+    })
+    request = urllib.request.Request(
+        "https://world.openbeautyfacts.org/cgi/search.pl?" + params,
+        headers={"User-Agent": "DekelChecker/1.0 (personal project)"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    found = []
+    for product in data.get("products", []):
+        ingredients = (product.get("ingredients_text") or "").strip()
+        name = (product.get("product_name") or "").strip()
+        if ingredients and name:
+            found.append({"brand": (product.get("brands") or "").strip(), "name": name, "ingredients": ingredients})
+    return found[:4]
 
 
 def search_dekel(ingredient):
@@ -421,6 +586,10 @@ def reset_all():
     st.session_state.results = {}
     st.session_state.ocr_ingredients_text = ""
     st.session_state.selected_ingredient = None
+    st.session_state.product_candidates = []
+    st.session_state.product_source = None
+    st.session_state.product_status = None
+    st.session_state.selected_product = None
     st.session_state.uploader_key += 1
     st.session_state.manual_key += 1
 
@@ -445,6 +614,14 @@ if "selected_ingredient" not in st.session_state:
     st.session_state.selected_ingredient = None
 if "results" not in st.session_state:
     st.session_state.results = {}
+if "product_candidates" not in st.session_state:
+    st.session_state.product_candidates = []
+if "product_source" not in st.session_state:
+    st.session_state.product_source = None
+if "product_status" not in st.session_state:
+    st.session_state.product_status = None
+if "selected_product" not in st.session_state:
+    st.session_state.selected_product = None
 
 
 def section(icon, title, subtitle="", index=""):
@@ -662,57 +839,6 @@ def show_summary(ingredients):
                 render_result(ing, r)
 
 
-with st.container(border=True):
-    section("📸", "צילום של רשימת הרכיבים", "מעלות תמונה ברורה של הרכיבים מאחורי האריזה", "01")
-    uploaded_image = st.file_uploader(
-        "העלי תמונה של רשימת רכיבים",
-        type=["jpg", "jpeg", "png"],
-        label_visibility="collapsed",
-        key=f"uploader_{st.session_state.uploader_key}",
-    )
-    st.caption("📱 בטלפון: לוחצים על Upload ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
-
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="התמונה שהועלתה", width="stretch")
-
-        if st.button("✨ סרקי את הרכיבים מהתמונה"):
-            started = time.time()
-            with st.spinner("קוראת את הטקסט מהתמונה..."):
-                extracted_text = extract_text(uploaded_image.getvalue())
-            st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
-
-            with st.expander("הטקסט הגולמי שזוהה"):
-                st.code(extracted_text, language=None, wrap_lines=True)
-
-            ingredients = split_ingredients(extracted_text.replace(";", ","))
-            st.session_state.ocr_ingredients_text = "\n".join(ingredients)
-
-if uploaded_image and st.session_state.ocr_ingredients_text:
-    with st.container(border=True):
-        section("📝", "הרכיבים שזוהו", "ה-OCR לא תמיד מדויק, אפשר לתקן כאן (רכיב אחד בכל שורה)", "02")
-        st.session_state.ocr_ingredients_text = st.text_area(
-            "רשימת רכיבים לעריכה",
-            value=st.session_state.ocr_ingredients_text,
-            height=200,
-            label_visibility="collapsed",
-        )
-
-        ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
-
-        if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
-            check_all(ingredient_list)
-
-        show_summary(ingredient_list)
-
-        with st.expander("בדיקה של רכיב בודד"):
-            for ing in ingredient_list:
-                if st.button(f"בדקי {ing}", key=f"img_{ing}"):
-                    st.session_state.selected_ingredient = ing
-
-if st.session_state.selected_ingredient:
-    show_result(st.session_state.selected_ingredient)
-
 def product_card_html(product):
     verified = product["verified"]
     seal = (
@@ -746,6 +872,189 @@ def product_card_html(product):
         f'<div class="pseal">{seal}</div>{paragraphs}{link}</div></div>'
     )
 
+
+def identify_product(image_bytes):
+    st.session_state.product_candidates = []
+    st.session_state.product_source = None
+
+    with st.spinner("קוראת את הטקסט מהתמונה..."):
+        lines = ocr_lines(image_bytes)
+    queries = build_queries(lines)
+    if not queries:
+        st.session_state.product_status = "no-text"
+        return
+
+    try:
+        with st.spinner("מחפשת את המוצר בקטלוג של דקל..."):
+            found = find_products(queries)
+    except Exception:
+        st.session_state.product_status = "error"
+        return
+
+    candidates = rank_products(found, lines)
+    source = "dekel"
+    if not candidates:
+        with st.spinner("לא נמצא בדקל, מחפשת במאגר פתוח..."):
+            candidates = search_open_beauty_facts(" ".join(queries[0].split()[:8]))
+        source = "obf"
+
+    st.session_state.product_candidates = candidates
+    st.session_state.product_source = source
+    st.session_state.product_status = "ok" if candidates else "none"
+
+
+def choose_dekel_product(product):
+    try:
+        with st.spinner("מביאה את הרכיבים והדירוגים מדקל..."):
+            names, results = load_product_ingredients(product["slug"])
+    except Exception:
+        st.error("לא הצלחתי להביא את הרכיבים של המוצר כרגע. נסי שוב בעוד רגע.")
+        return
+
+    st.session_state.results.update(results)
+    st.session_state.ocr_ingredients_text = "\n".join(names)
+    st.session_state.selected_product = product
+    st.session_state.product_candidates = []
+    st.session_state.product_status = None
+    st.rerun()
+
+
+def choose_obf_product(candidate):
+    names = split_ingredients(candidate["ingredients"].replace(";", ","))
+    st.session_state.ocr_ingredients_text = "\n".join(names)
+    st.session_state.selected_product = {
+        "source": "obf", "name": candidate["name"], "company": candidate["brand"],
+    }
+    st.session_state.product_candidates = []
+    st.session_state.product_status = None
+    st.rerun()
+
+
+def render_candidates():
+    status = st.session_state.product_status
+    if status == "no-text":
+        st.warning("לא הצלחתי לקרוא טקסט בתמונה. נסי לצלם שוב מקרוב ובאור טוב, כשהשם והמותג נראים בבירור.")
+    elif status == "error":
+        st.error("לא הצלחתי לחפש את המוצר כרגע. נסי שוב בעוד רגע.")
+    elif status == "none":
+        st.info(
+            "לא מצאתי את המוצר. אפשר לחפש לפי שם בכרטיס 'האם המוצר מאושר דקל?' למטה, "
+            "או לצלם את רשימת הרכיבים שעל האריזה."
+        )
+
+    candidates = st.session_state.product_candidates
+    if not candidates:
+        return
+
+    if st.session_state.product_source == "dekel":
+        st.caption("זה המוצר שלך? בחרי את ההתאמה הנכונה")
+        for index, product in enumerate(candidates):
+            st.markdown(product_card_html(product), unsafe_allow_html=True)
+            if st.button("✔ זה המוצר שלי", key=f"pick_{index}"):
+                choose_dekel_product(product)
+    else:
+        st.warning(
+            "המוצר לא נמצא בקטלוג של דקל. אלה התאמות ממאגר פתוח (Open Beauty Facts), "
+            "וייתכן שההרכב בהן שונה מהאריזה שלך."
+        )
+        for index, candidate in enumerate(candidates):
+            label = f"{candidate['brand']} · {candidate['name']}".strip(" ·")
+            st.markdown(
+                f'<div class="pcard"><div class="pbody"><div class="pname">{html.escape(label)}</div>'
+                f'<p>{html.escape(candidate["ingredients"][:160])}…</p></div></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("✔ זה המוצר שלי", key=f"pick_obf_{index}"):
+                choose_obf_product(candidate)
+
+
+def selected_product_banner():
+    product = st.session_state.selected_product
+    if not product:
+        return
+    if product.get("source") == "obf":
+        label = f"{product.get('company', '')} · {product['name']}".strip(" ·")
+        st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
+    else:
+        st.markdown(product_card_html(product), unsafe_allow_html=True)
+
+
+MODE_LIST, MODE_PRODUCT = "📋 רשימת הרכיבים באריזה", "📦 צילום המוצר עצמו"
+
+with st.container(border=True):
+    section("📸", "צילום", "מצלמות את רשימת הרכיבים, או את המוצר עצמו ואנחנו נזהה אותו", "01")
+    mode = st.segmented_control(
+        "מה מצלמים?",
+        [MODE_LIST, MODE_PRODUCT],
+        default=MODE_LIST,
+        label_visibility="collapsed",
+        key=f"mode_{st.session_state.uploader_key}",
+    )
+
+    if mode == MODE_PRODUCT:
+        product_photo = st.file_uploader(
+            "העלי תמונה של המוצר",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed",
+            key=f"product_photo_{st.session_state.uploader_key}",
+        )
+        st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: Upload ואז 'צילום'.")
+        if product_photo:
+            st.image(Image.open(product_photo), caption="תמונת המוצר", width="stretch")
+            if st.button("🔎 זהי את המוצר"):
+                identify_product(product_photo.getvalue())
+        render_candidates()
+    else:
+        uploaded_image = st.file_uploader(
+            "העלי תמונה של רשימת רכיבים",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed",
+            key=f"uploader_{st.session_state.uploader_key}",
+        )
+        st.caption("📱 בטלפון: לוחצים על Upload ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
+
+        if uploaded_image:
+            image = Image.open(uploaded_image)
+            st.image(image, caption="התמונה שהועלתה", width="stretch")
+
+            if st.button("✨ סרקי את הרכיבים מהתמונה"):
+                started = time.time()
+                with st.spinner("קוראת את הטקסט מהתמונה..."):
+                    extracted_text = extract_text(uploaded_image.getvalue())
+                st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
+
+                with st.expander("הטקסט הגולמי שזוהה"):
+                    st.code(extracted_text, language=None, wrap_lines=True)
+
+                ingredients = split_ingredients(extracted_text.replace(";", ","))
+                st.session_state.ocr_ingredients_text = "\n".join(ingredients)
+                st.session_state.selected_product = None
+
+if st.session_state.ocr_ingredients_text:
+    with st.container(border=True):
+        section("📝", "הרכיבים", "אפשר לתקן את הרשימה (רכיב אחד בכל שורה) לפני הסריקה", "02")
+        selected_product_banner()
+        st.session_state.ocr_ingredients_text = st.text_area(
+            "רשימת רכיבים לעריכה",
+            value=st.session_state.ocr_ingredients_text,
+            height=200,
+            label_visibility="collapsed",
+        )
+
+        ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
+
+        if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
+            check_all(ingredient_list)
+
+        show_summary(ingredient_list)
+
+        with st.expander("בדיקה של רכיב בודד"):
+            for ing in ingredient_list:
+                if st.button(f"בדקי {ing}", key=f"img_{ing}"):
+                    st.session_state.selected_ingredient = ing
+
+if st.session_state.selected_ingredient:
+    show_result(st.session_state.selected_ingredient)
 
 with st.container(border=True):
     section("🏷️", "האם המוצר מאושר דקל?", "חפשי מוצר לפי שם או מותג ונבדוק אם הוא Dekel Verified", "04")
