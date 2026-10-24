@@ -121,6 +121,15 @@
         setTimeout(function () { s.remove(); }, 650);
     });
 
+    /* ---------- חזרה למעלה ---------- */
+    doc.addEventListener('click', function (e) {
+        var link = e.target.closest && e.target.closest('.to-top');
+        if (!link) return;
+        e.preventDefault();
+        var main = doc.querySelector('[data-testid="stMain"]') || window;
+        main.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    });
+
     /* ---------- ספירה עולה במספרים ---------- */
     function countUp(el) {
         if (el.dataset.done) return;

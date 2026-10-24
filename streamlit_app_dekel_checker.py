@@ -352,8 +352,25 @@ HERO_HTML = """
 </div>
 """
 
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+if "manual_key" not in st.session_state:
+    st.session_state.manual_key = 0
+
+
+def reset_all():
+    st.session_state.results = {}
+    st.session_state.ocr_ingredients_text = ""
+    st.session_state.selected_ingredient = None
+    st.session_state.uploader_key += 1
+    st.session_state.manual_key += 1
+
+
+top_left, top_right, _ = st.columns([1, 1, 2])
+top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
+top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
+
 st.markdown(HERO_HTML, unsafe_allow_html=True)
-st.link_button("🌐 פתחי את אתר דקל", "https://thedekel.co.il/#milonid")
 
 try:
     st.html(
@@ -516,7 +533,10 @@ def show_summary(ingredients):
 with st.container(border=True):
     section("📸", "צילום של רשימת הרכיבים", "מעלות תמונה ברורה של הרכיבים מאחורי האריזה", "01")
     uploaded_image = st.file_uploader(
-        "העלי תמונה של רשימת רכיבים", type=["jpg", "jpeg", "png"], label_visibility="collapsed"
+        "העלי תמונה של רשימת רכיבים",
+        type=["jpg", "jpeg", "png"],
+        label_visibility="collapsed",
+        key=f"uploader_{st.session_state.uploader_key}",
     )
 
     if uploaded_image:
@@ -562,7 +582,12 @@ if st.session_state.selected_ingredient:
 
 with st.container(border=True):
     section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
-    ingredient_name = st.text_input("הכניסי רכיב:", label_visibility="collapsed", placeholder="Niacinamide")
+    ingredient_name = st.text_input(
+        "הכניסי רכיב:",
+        label_visibility="collapsed",
+        placeholder="Niacinamide",
+        key=f"manual_{st.session_state.manual_key}",
+    )
 
     if st.button("חפשי רכיב"):
         if ingredient_name.strip():
@@ -571,6 +596,7 @@ with st.container(border=True):
             st.warning("נא להזין שם רכיב")
 
 st.markdown(
+    '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'
     '<div class="footer">המידע מבוסס על מילון הרכיבים של דקל</div>',
     unsafe_allow_html=True,
 )
