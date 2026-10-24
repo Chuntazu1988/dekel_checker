@@ -121,6 +121,118 @@
         setTimeout(function () { s.remove(); }, 650);
     });
 
+    /* ---------- בניית אלמנטים (בלי מחרוזות HTML) ---------- */
+    function makeEl(tag, className, text) {
+        var node = doc.createElement(tag);
+        if (className) node.className = className;
+        if (text) node.textContent = text;
+        return node;
+    }
+
+    /* ---------- תמונת מוצר בחלונית גדולה עם זום ---------- */
+    var lightbox = null;
+
+    function closeLightbox() {
+        if (!lightbox) return;
+        var box = lightbox;
+        lightbox = null;
+        box.classList.remove('open');
+        setTimeout(function () { box.remove(); }, reduce ? 0 : 280);
+    }
+
+    function openLightbox(img) {
+        closeLightbox();
+        var card = img.closest('.pcard');
+        var nameNode = card ? card.querySelector('.pname') : null;
+        var companyNode = card ? card.querySelector('.pco') : null;
+        var name = nameNode ? nameNode.textContent : '';
+        var company = companyNode ? companyNode.textContent : '';
+
+        var box = makeEl('div', 'lb');
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-modal', 'true');
+        var panel = makeEl('div', 'lb-card');
+        var closeBtn = makeEl('button', 'lb-close', '✕');
+        closeBtn.setAttribute('aria-label', 'close');
+        var stage = makeEl('div', 'lb-stage');
+        var big = makeEl('img', 'lb-img');
+        big.src = img.src;
+        big.alt = name;
+        stage.appendChild(big);
+        var caption = makeEl('div', 'lb-cap');
+        caption.appendChild(makeEl('b', '', name));
+        caption.appendChild(makeEl('span', '', company));
+        var hint = makeEl('div', 'lb-hint', 'לחצי על התמונה כדי להתקרב');
+        panel.appendChild(closeBtn);
+        panel.appendChild(stage);
+        panel.appendChild(caption);
+        panel.appendChild(hint);
+        box.appendChild(panel);
+        doc.body.appendChild(box);
+        lightbox = box;
+        requestAnimationFrame(function () { box.classList.add('open'); });
+
+        var zoomed = false;
+        function setOrigin(e) {
+            var r = stage.getBoundingClientRect();
+            var x = Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100));
+            var y = Math.max(0, Math.min(100, (e.clientY - r.top) / r.height * 100));
+            big.style.transformOrigin = x + '% ' + y + '%';
+        }
+        stage.addEventListener('click', function (e) {
+            e.stopPropagation();
+            zoomed = !zoomed;
+            big.classList.toggle('zoomed', zoomed);
+            if (zoomed) setOrigin(e);
+            hint.textContent = zoomed ? 'מזיזים את העכבר כדי לסייר בתמונה, ולחיצה מחזירה' : 'לחצי על התמונה כדי להתקרב';
+        });
+        stage.addEventListener('pointermove', function (e) { if (zoomed) setOrigin(e); });
+        closeBtn.addEventListener('click', closeLightbox);
+        box.addEventListener('click', function (e) { if (e.target === box) closeLightbox(); });
+        box.addEventListener('wheel', function (e) { e.preventDefault(); }, { passive: false });
+    }
+
+    doc.addEventListener('click', function (e) {
+        var img = e.target.closest && e.target.closest('.pcard .pimg');
+        if (img) openLightbox(img);
+    });
+    doc.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeLightbox();
+    });
+
+    /* ---------- חגיגת Dekel Verified על כל המסך ---------- */
+    var celebrated = {};
+    var SPARKS = ['✨', '⭐', '💫'];
+
+    function celebrate() {
+        var marker = doc.querySelector('.celebrate-marker');
+        if (!marker) return;
+        var id = marker.getAttribute('data-id');
+        if (!id || celebrated[id]) return;
+        celebrated[id] = true;
+
+        var overlay = makeEl('div', 'celebrate');
+        overlay.appendChild(makeEl('div', 'cel-glow'));
+        for (var i = 0; i < 14; i++) {
+            var spark = makeEl('i', 'cel-spark', SPARKS[i % SPARKS.length]);
+            var angle = (i / 14) * Math.PI * 2;
+            var dist = 30 + Math.random() * 16;
+            spark.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'vmin');
+            spark.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'vmin');
+            spark.style.animationDelay = (0.2 + Math.random() * 0.3).toFixed(2) + 's';
+            overlay.appendChild(spark);
+        }
+        overlay.appendChild(makeEl('div', 'cel-logo'));
+        doc.body.appendChild(overlay);
+
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { overlay.classList.add('in'); });
+        });
+        // נכנס, נשאר 3 שניות, ויוצא באותה דרך בחזרה
+        setTimeout(function () { overlay.classList.remove('in'); overlay.classList.add('out'); }, 650 + 3000);
+        setTimeout(function () { overlay.remove(); }, 650 + 3000 + 800);
+    }
+
     /* ---------- חזרה למעלה ---------- */
     doc.addEventListener('click', function (e) {
         var link = e.target.closest && e.target.closest('.to-top');
@@ -146,6 +258,7 @@
     function scan() {
         var els = doc.querySelectorAll('.num[data-t]:not([data-done])');
         for (var i = 0; i < els.length; i++) countUp(els[i]);
+        celebrate();
     }
     new MutationObserver(scan).observe(doc.body, { childList: true, subtree: true });
     scan();

@@ -477,6 +477,90 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 .g-note { margin-top: 0.8rem; color: var(--muted); font-size: 0.78rem; line-height: 1.6; }
 @media (max-width: 640px) { .ug-grid, .g-grid { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---------- חלונית תמונת מוצר (Lightbox) ---------- */
+.pcard .pimg { cursor: zoom-in; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.pcard .pimg:hover { transform: scale(1.07) rotate(-1deg); box-shadow: 0 16px 36px rgba(94, 234, 212, 0.35); }
+
+.lb {
+    position: fixed; inset: 0; z-index: 99999;
+    display: grid; place-items: center; padding: 1rem;
+    background: rgba(6, 5, 16, 0.78);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    opacity: 0; transition: opacity 0.28s ease;
+    direction: rtl;
+}
+.lb.open { opacity: 1; }
+.lb-card {
+    position: relative; width: min(92vw, 540px);
+    border-radius: 28px; padding: 1rem 1rem 1.1rem;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), #0F0D22;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.65), 0 0 70px rgba(139, 92, 246, 0.28);
+    transform: translateY(24px) scale(0.86); opacity: 0;
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    font-family: 'Heebo', 'Segoe UI', Arial, sans-serif; color: #ECE9F5;
+}
+.lb.open .lb-card { transform: none; opacity: 1; }
+.lb-close {
+    position: absolute; top: 0.8rem; left: 0.8rem; z-index: 2;
+    width: 2.4rem; height: 2.4rem; border-radius: 50%; cursor: pointer;
+    color: #ECE9F5; font-size: 1rem;
+    background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.25);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+.lb-close:hover { background: rgba(255, 111, 181, 0.85); transform: rotate(90deg) scale(1.08); }
+.lb-stage {
+    height: min(68vh, 620px); border-radius: 20px; overflow: hidden; cursor: zoom-in;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+}
+.lb-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); user-select: none; -webkit-user-drag: none; }
+.lb-img.zoomed { transform: scale(2.4); cursor: zoom-out; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform-origin 0.08s linear; }
+.lb-stage:has(.lb-img.zoomed) { cursor: zoom-out; }
+.lb-cap { margin-top: 0.8rem; text-align: center; }
+.lb-cap b { display: block; font: 700 1.1rem/1.3 'Rubik', 'Heebo', sans-serif; direction: ltr; unicode-bidi: plaintext; }
+.lb-cap span { display: block; margin-top: 0.15rem; font-size: 0.82rem; letter-spacing: 0.08em; color: #9C94B8; direction: ltr; unicode-bidi: plaintext; }
+.lb-hint { margin-top: 0.5rem; text-align: center; font-size: 0.78rem; color: #5EEAD4; opacity: 0.85; }
+@media (max-width: 640px) { .lb-stage { height: min(60vh, 460px); } .lb-img.zoomed { transform: scale(2); } }
+
+/* ---------- שלושה גווני ירוק: מעולה / טוב / עובר ---------- */
+:root { --g-excellent: #2DF59B; --g-good: #8BE36F; --g-pass: #8FC9BA; }
+.chip.grade-excellent { --cc: var(--g-excellent); --cb: rgba(45, 245, 155, 0.75); --cg: rgba(45, 245, 155, 0.24); font-weight: 700; box-shadow: 0 0 16px rgba(45, 245, 155, 0.4); }
+.chip.grade-good      { --cc: var(--g-good);      --cb: rgba(139, 227, 111, 0.55); --cg: rgba(139, 227, 111, 0.15); }
+.chip.grade-pass      { --cc: var(--g-pass);      --cb: rgba(143, 201, 186, 0.45); --cg: rgba(143, 201, 186, 0.10); }
+.ugchip.grade-excellent { --cc: var(--g-excellent); --cb: rgba(45, 245, 155, 0.7); --cg: rgba(45, 245, 155, 0.22); font-weight: 700; }
+.ugchip.grade-good      { --cc: var(--g-good);      --cb: rgba(139, 227, 111, 0.5); --cg: rgba(139, 227, 111, 0.13); }
+.ugchip.grade-pass      { --cc: var(--g-pass);      --cb: rgba(143, 201, 186, 0.4); --cg: rgba(143, 201, 186, 0.09); }
+.rcard.grade-excellent { --cc: var(--g-excellent); }
+.rcard.grade-good      { --cc: var(--g-good); }
+.rcard.grade-pass      { --cc: var(--g-pass); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -0.4rem 0 1rem; align-items: center; color: var(--muted); font-size: 0.82rem; }
+.legend span.lg { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.12rem 0.75rem; border-radius: 999px; border: 1px solid var(--cb); background: var(--cg); color: var(--cc); }
+.legend span.lg i { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--cc); box-shadow: 0 0 8px var(--cc); }
+.legend b { font-family: 'Rubik', sans-serif; }
+
+/* ---------- חגיגת Dekel Verified על כל המסך ---------- */
+@keyframes burst {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+    25%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.3) rotate(40deg); }
+}
+.celebrate { position: fixed; inset: 0; z-index: 100000; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.cel-glow {
+    position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s ease 0.1s;
+    background: radial-gradient(circle at 50% 50%, rgba(94, 234, 212, 0.32), rgba(139, 92, 246, 0.24) 38%, rgba(6, 5, 16, 0.6) 78%);
+}
+.celebrate.in .cel-glow { opacity: 1; transition: opacity 0.5s ease; }
+.cel-logo {
+    position: relative; width: min(78vmin, 560px); height: min(80vmin, 572px);
+    background-size: contain; background-repeat: no-repeat; background-position: center;
+    opacity: 0; transform: scale(0) rotate(-24deg);
+    filter: drop-shadow(0 20px 50px rgba(94, 234, 212, 0.55));
+    transition: transform 0.55s cubic-bezier(0.55, -0.35, 0.75, 0.15), opacity 0.35s ease 0.15s;
+}
+.celebrate.in .cel-logo { opacity: 1; transform: scale(1) rotate(0); transition: transform 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease; }
+.cel-spark { position: absolute; left: 50%; top: 50%; opacity: 0; font-style: normal; font-size: clamp(1.4rem, 5vmin, 2.6rem); }
+.celebrate.in .cel-spark { animation: burst 1.3s ease-out both; }
+
 /* הדמות של דקל שמופיעה ליד מוצר מאושר */
 @keyframes mascotIn { 0% { opacity: 0; transform: scale(0.3) rotate(-14deg); } 70% { transform: scale(1.08) rotate(3deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.7) rotate(0); } 50% { opacity: 1; transform: scale(1.15) rotate(15deg); } }

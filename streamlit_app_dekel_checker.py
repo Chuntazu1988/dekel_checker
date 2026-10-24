@@ -20,6 +20,11 @@ import easyocr
 st.set_page_config(page_title="Dekel Checker", layout="centered")
 
 EMOJI_CLASS = {"🟢": "good", "🟡": "caution", "🔴": "bad"}
+GRADE_CLASS = {"מעולה": "grade-excellent", "טוב": "grade-good", "עובר": "grade-pass"}
+
+
+def grade_class(result):
+    return GRADE_CLASS.get(result.get("rating", ""), "")
 
 st.markdown(
     f"<style>{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
@@ -30,7 +35,7 @@ _mascot_file = Path(__file__).parent / "assets" / "dekel_verified.webp"
 if _mascot_file.exists():
     _mascot_b64 = base64.b64encode(_mascot_file.read_bytes()).decode()
     st.markdown(
-        f"<style>.dv-mascot {{ background-image: url(data:image/webp;base64,{_mascot_b64}); }}</style>",
+        f"<style>.dv-mascot, .cel-logo {{ background-image: url(data:image/webp;base64,{_mascot_b64}); }}</style>",
         unsafe_allow_html=True,
     )
 
@@ -636,7 +641,7 @@ def usage_groups_html(names, results):
         if not members:
             continue
         chips = "".join(
-            f'<span class="ugchip {EMOJI_CLASS.get(results[n]["emoji"], "other")}">{html.escape(n)}</span>'
+            f'<span class="ugchip {EMOJI_CLASS.get(results[n]["emoji"], "other")} {grade_class(results[n])}">{html.escape(n)}</span>'
             for n in members
         )
         blocks.append(
@@ -857,6 +862,8 @@ def reset_all():
     st.session_state.product_status = None
     st.session_state.selected_product = None
     st.session_state.product_meta = None
+    st.session_state.celebrate_id = None
+    st.session_state.product_hits = None
     st.session_state.uploader_key += 1
     st.session_state.manual_key += 1
 
@@ -891,6 +898,16 @@ if "selected_product" not in st.session_state:
     st.session_state.selected_product = None
 if "product_meta" not in st.session_state:
     st.session_state.product_meta = None
+if "celebrate_id" not in st.session_state:
+    st.session_state.celebrate_id = None
+if "product_hits" not in st.session_state:
+    st.session_state.product_hits = None
+
+if st.session_state.celebrate_id:
+    st.markdown(
+        f'<div class="celebrate-marker" data-id="{st.session_state.celebrate_id}"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def section(icon, title, subtitle="", index=""):
@@ -970,7 +987,8 @@ def split_ingredients(text):
 
 def result_card_html(name, result):
     kind = EMOJI_CLASS.get(result["emoji"], "other")
-    chip = f'<span class="chip {kind}">{html.escape(result["emoji"])} {html.escape(result["rating"])}</span>'
+    grade = grade_class(result)
+    chip = f'<span class="chip {kind} {grade}">{html.escape(result["emoji"])} {html.escape(result["rating"])}</span>'
     role = f'<div class="rc-role">{html.escape(result["role"])}</div>' if result.get("role") else ""
 
     description = result.get("description") or ""
@@ -983,7 +1001,7 @@ def result_card_html(name, result):
     notes = f'<div class="rc-notes">{notes}</div>' if notes else ""
 
     return (
-        f'<div class="rcard {kind}"><div class="rc-head">'
+        f'<div class="rcard {kind} {grade}"><div class="rc-head">'
         f'<span class="rc-name">{html.escape(name)}</span>{chip}</div>'
         f"{role}{paragraphs}{notes}</div>"
     )
@@ -1110,6 +1128,15 @@ def show_summary(ingredients):
         unsafe_allow_html=True,
     )
 
+    if good:
+        counts = {name: sum(r["rating"] == name for r in results) for name in GRADE_CLASS}
+        pills = "".join(
+            f'<span class="lg chip {GRADE_CLASS[name]}"><i></i>{name} <b>{counts[name]}</b></span>'
+            for name in ("מעולה", "טוב", "עובר")
+            if counts[name]
+        )
+        st.markdown(f'<div class="legend">הירוקים לפי דרגה: {pills}</div>', unsafe_allow_html=True)
+
     section("🗂️", "קבוצות לפי שימוש", "מה כל רכיב עושה במוצר")
     st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
 
@@ -1122,7 +1149,7 @@ def show_summary(ingredients):
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
         f'<td class="ing">{html.escape(ing)}</td>'
-        f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")}">'
+        f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")} {grade_class(r)}">'
         f'{html.escape(r["emoji"])} {html.escape(r["rating"])}</span></td>'
         f'<td>{html.escape(r["role"])}</td>'
         "</tr>"
@@ -1156,7 +1183,10 @@ def product_card_html(product):
     img = ""
     if picture and re.fullmatch(r"[A-Za-z0-9+/=]+", picture):
         mime = "image/webp" if picture.startswith("UklGR") else "image/png" if picture.startswith("iVBOR") else "image/jpeg"
-        img = f'<img class="pimg" alt="" src="data:{mime};base64,{picture}">'
+        img = (
+            f'<img class="pimg" alt="{html.escape(product["name"])}" title="לחצי להגדלה" '
+            f'src="data:{mime};base64,{picture}">'
+        )
 
     description = product["description"]
     limit = 260 if verified else 420
@@ -1223,6 +1253,9 @@ def choose_dekel_product(product):
     st.session_state.product_meta = meta
     st.session_state.product_candidates = []
     st.session_state.product_status = None
+    st.session_state.product_hits = None
+    if product.get("verified"):
+        st.session_state.celebrate_id = int(time.time() * 1000)
     st.rerun()
 
 
@@ -1379,17 +1412,21 @@ with st.container(border=True):
         else:
             try:
                 with st.spinner("מחפשת בקטלוג של דקל..."):
-                    found = search_products(product_term.strip())
+                    st.session_state.product_hits = search_products(product_term.strip())
             except Exception:
-                found = None
+                st.session_state.product_hits = None
                 st.error("לא הצלחתי לבדוק את המוצר כרגע. נסי שוב בעוד רגע.")
 
-            if found is not None and not found:
-                st.info("לא נמצא מוצר כזה בקטלוג של דקל. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
-            elif found:
-                verified_count = sum(p["verified"] for p in found)
-                st.caption(f"נמצאו {len(found)} מוצרים, {verified_count} מהם Dekel Verified")
-                st.markdown("".join(product_card_html(p) for p in found[:8]), unsafe_allow_html=True)
+    found = st.session_state.product_hits
+    if found is not None and not found:
+        st.info("לא נמצא מוצר כזה בקטלוג של דקל. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
+    elif found:
+        verified_count = sum(p["verified"] for p in found)
+        st.caption(f"נמצאו {len(found)} מוצרים, {verified_count} מהם Dekel Verified")
+        for index, product in enumerate(found[:8]):
+            st.markdown(product_card_html(product), unsafe_allow_html=True)
+            if st.button("✔ זה המוצר שלי, טעני את הרכיבים", key=f"search_pick_{index}"):
+                choose_dekel_product(product)
 
 with st.container(border=True):
     section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
