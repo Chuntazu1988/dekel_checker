@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 import sys
 import time
 import urllib.request
@@ -94,9 +95,27 @@ def ensure_playwright_browser():
 # ======================
 
 def _new_context(p, browser):
-    if SESSION_PATH.exists():
-        return browser.new_context(storage_state=str(SESSION_PATH))
-    return browser.new_context()
+    context = browser.new_context(storage_state=str(SESSION_PATH)) if SESSION_PATH.exists() else browser.new_context()
+    # תמונות, גופנים ווידאו לא נחוצים לשליפת נתונים, וחוסכים זמן טעינה
+    context.route(
+        "**/*",
+        lambda route: route.abort() if route.request.resource_type in ("image", "font", "media") else route.continue_(),
+    )
+    return context
+
+
+class FastPathUnavailable(Exception):
+    pass
+
+
+def _open_fast_page(p, browser):
+    """פותחת עמוד קל (robots.txt) על הדומיין של דקל עם הסשן השמור, בלי לטעון את האתר המלא."""
+    context = _new_context(p, browser)
+    if not any(c["name"].startswith("wordpress_logged_in") for c in context.cookies()):
+        raise FastPathUnavailable()
+    page = context.new_page()
+    page.goto("https://thedekel.co.il/robots.txt", wait_until="commit", timeout=30000)
+    return page
 
 
 def _login(page, env):
@@ -338,11 +357,18 @@ def search_many(ingredients, on_progress=None):
 def _fetch_many(ingredients, on_progress=None):
     env = load_env()
     ensure_playwright_browser()
-    results = {}
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
+            try:
+                fast_page = _open_fast_page(p, browser)
+                fast = _run_batches(fast_page, ingredients, on_progress)
+                if fast is not None:
+                    return fast
+            except FastPathUnavailable:
+                pass
+
             context = _new_context(p, browser)
             page = context.new_page()
             _open_dictionary(page)
@@ -358,24 +384,31 @@ def _fetch_many(ingredients, on_progress=None):
                 )
                 return {ingredient: failure for ingredient in ingredients}
 
-            chunk = 12
-            failed = []
-            for start in range(0, len(ingredients), chunk):
-                part = ingredients[start:start + chunk]
-                for item in page.evaluate(BATCH_JS, part):
-                    if item.get("error"):
-                        failed.append(item["name"])
-                    else:
-                        results[item["name"]] = _to_result(item)
-                if on_progress:
-                    on_progress(min(start + chunk, len(ingredients)), len(ingredients), part[-1])
-
-            if failed:
-                for item in page.evaluate(BATCH_JS, failed):
-                    results[item["name"]] = _to_result(item)
+            return _run_batches(page, ingredients, on_progress)
         finally:
             browser.close()
 
+
+def _run_batches(page, ingredients, on_progress=None):
+    """בודקת רכיבים דרך הדף. מחזירה None אם הסשן המהיר לא עבד (כל הרכיבים בקבוצה הראשונה נכשלו)."""
+    results, failed = {}, []
+    chunk = 12
+    for start in range(0, len(ingredients), chunk):
+        part = ingredients[start:start + chunk]
+        items = page.evaluate(BATCH_JS, part)
+        if start == 0 and items and all(item.get("error") for item in items):
+            return None
+        for item in items:
+            if item.get("error"):
+                failed.append(item["name"])
+            else:
+                results[item["name"]] = _to_result(item)
+        if on_progress:
+            on_progress(min(start + chunk, len(ingredients)), len(ingredients), part[-1])
+
+    if failed:
+        for item in page.evaluate(BATCH_JS, failed):
+            results[item["name"]] = _to_result(item)
     return results
 
 
@@ -444,6 +477,16 @@ def _with_logged_in_page(callback):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
+            try:
+                fast_page = _open_fast_page(p, browser)
+                outcome = callback(fast_page)
+                if outcome and not (isinstance(outcome, dict) and "error" in outcome):
+                    return outcome
+            except FastPathUnavailable:
+                pass
+            except Exception:
+                pass
+
             context = _new_context(p, browser)
             page = context.new_page()
             _open_dictionary(page)
@@ -656,10 +699,16 @@ def _tokens(text):
     return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOPWORDS]
 
 
+PRODUCT_OCR_SIDE = 1280
+
+
 @st.cache_data(show_spinner=False)
 def ocr_lines(image_bytes):
     image = open_image(io.BytesIO(image_bytes))
-    result = get_ocr_reader().readtext(np.array(preprocess_for_ocr(image)), detail=1, canvas_size=MAX_OCR_SIDE)
+    # שם ומותג על האריזה גדולים, ולכן אפשר לקרוא ברזולוציה נמוכה יותר ולחסוך זמן
+    result = get_ocr_reader().readtext(
+        np.array(preprocess_for_ocr(image, PRODUCT_OCR_SIDE)), detail=1, canvas_size=PRODUCT_OCR_SIDE
+    )
     lines = []
     for box, text, confidence in result:
         ys = [point[1] for point in box]
@@ -1130,8 +1179,8 @@ HERO_HTML = """
     <h1>בדיקת רכיבים</h1>
     <p>מצלמים את רשימת הרכיבים, והמערכת סורקת כל רכיב ומראה מה באמת יש במוצר.</p>
     <div class="steps">
-        <span><b>01</b> צילום</span>
-        <span><b>02</b> סריקה</span>
+        <span><b>01</b> צילום</span><i class="arr">←</i>
+        <span><b>02</b> סריקה</span><i class="arr">←</i>
         <span><b>03</b> הבנה</span>
     </div>
 </div>
@@ -1225,9 +1274,30 @@ def section(icon, title, subtitle="", index=""):
     )
 
 
-@st.cache_resource(show_spinner="טוענת מנוע זיהוי טקסט (רק בפעם הראשונה)...")
+@st.cache_resource(show_spinner=False)
+def _ocr_holder():
+    return {"reader": None, "lock": threading.Lock()}
+
+
+def _load_ocr_reader(holder):
+    with holder["lock"]:
+        if holder["reader"] is None:
+            holder["reader"] = easyocr.Reader(["en"], gpu=False)
+        return holder["reader"]
+
+
 def get_ocr_reader():
-    return easyocr.Reader(["en"], gpu=False)
+    return _load_ocr_reader(_ocr_holder())
+
+
+@st.cache_resource(show_spinner=False)
+def start_ocr_warmup():
+    """טוענת את מנוע ה-OCR ברקע כבר בפתיחת האתר, כדי שלא יחכו לו אחרי העלאת תמונה."""
+    threading.Thread(target=_load_ocr_reader, args=(_ocr_holder(),), daemon=True).start()
+    return True
+
+
+start_ocr_warmup()
 
 
 @st.cache_data(show_spinner=False)
@@ -1265,11 +1335,11 @@ def preview_image(image):
     return preview
 
 
-def preprocess_for_ocr(image):
+def preprocess_for_ocr(image, max_side=None):
     # גודל אחיד וחסום (עד MAX_OCR_SIDE) + ניגודיות + חידוד: עוזרים ל-OCR לתפוס פסיקים
     # קטנים בלי לנפח את הזיכרון בתמונות גדולות מהטלפון
     image = image.convert("RGB")
-    scale = min(2.0, MAX_OCR_SIDE / max(image.size))
+    scale = min(2.0, (max_side or MAX_OCR_SIDE) / max(image.size))
     if abs(scale - 1) > 0.05:
         image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
     image = ImageOps.grayscale(image)
@@ -1606,7 +1676,7 @@ def continue_search():
 
 
 CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
-TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "🧪 בדיקת רכיבים", "📦 זיהוי מוצר", "🤝 שילובים", "🎟️ קופונים"
+TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
 
 
 def search_by_typed_name(term):
@@ -1726,7 +1796,20 @@ def selected_product_banner():
     st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
 
 
+def how_box(icon, title, text):
+    st.markdown(
+        f'<div class="how"><span class="how-ico">{icon}</span><div><b>{html.escape(title)}</b>'
+        f'<span>{html.escape(text)}</span></div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def tab_ingredients():
+    how_box(
+        "📋", "צילום של רשימת הרכיבים",
+        "מצלמות את הטקסט הקטן בגב האריזה (INGREDIENTS), והמערכת קוראת כל רכיב ומדרגת אותו. "
+        "אם אין לך את הגב של האריזה, עברי ללשונית 'צילום המוצר עצמו'.",
+    )
     with st.container(border=True):
         section("📸", "צילום רשימת הרכיבים", "מצלמות את הרכיבים שבאריזה, והמערכת קוראת אותם")
         uploaded_image = st.file_uploader(
@@ -1777,7 +1860,7 @@ def tab_ingredients():
                     if st.button(f"בדקי {ing}", key=f"img_{ing}"):
                         st.session_state.selected_ingredient = ing
     else:
-        st.info("עוד אין רכיבים לבדיקה. צלמי רשימת רכיבים, או זהי מוצר בלשונית 'זיהוי מוצר'.")
+        st.info("עוד אין רכיבים לבדיקה. צלמי רשימת רכיבים, או זהי מוצר בלשונית 'צילום המוצר עצמו'.")
 
     if st.session_state.selected_ingredient:
         show_result(st.session_state.selected_ingredient)
@@ -1799,6 +1882,11 @@ def tab_ingredients():
 
 
 def tab_product():
+    how_box(
+        "📦", "צילום של המוצר עצמו",
+        "מצלמות את חזית האריזה (שם ומותג), והמערכת מזהה את המוצר בקטלוג של דקל וטוענת את הרכיבים והדירוגים שלו משם. "
+        "לא צריך לצלם את רשימת הרכיבים.",
+    )
     with st.container(border=True):
         section("📦", "זיהוי מוצר מצילום", "מצלמות את המוצר עצמו, ואנחנו מוצאות אותו בקטלוג של דקל")
         product_photo = st.file_uploader(
@@ -1850,7 +1938,7 @@ def tab_compat():
     product = st.session_state.selected_product
     if not (product and product.get("slug") and product.get("source") != "obf"):
         st.info(
-            "כדי לראות אילו מוצרים אפשר לשלב, בחרי מוצר של דקל בלשונית 'זיהוי מוצר'. "
+            "כדי לראות אילו מוצרים אפשר לשלב, בחרי מוצר של דקל בלשונית 'צילום המוצר עצמו'. "
             "ההשוואה זמינה למוצרים שנמצאו בקטלוג של דקל."
         )
         st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
