@@ -174,8 +174,11 @@ BATCH_JS = """async (names) => {
 }"""
 
 
-def _result(emoji, rating, text, role=""):
-    return {"emoji": emoji, "rating": rating, "text": text, "role": role}
+def _result(emoji, rating, text, role="", description="", notes=()):
+    return {
+        "emoji": emoji, "rating": rating, "text": text, "role": role,
+        "description": description, "notes": list(notes),
+    }
 
 
 def _open_dictionary(page, reload=False):
@@ -246,10 +249,13 @@ def _to_result(item):
     body = "\n\n".join(part for part in (role_line, description, " | ".join(notes)) if part)
 
     if not rating:
-        return _result("⚪", "אין דירוג", f"⚪ עדיין אין דירוג באתר דקל עבור \"{name}\"\n\n{body}", roles)
+        return _result(
+            "⚪", "אין דירוג", f"⚪ עדיין אין דירוג באתר דקל עבור \"{name}\"\n\n{body}",
+            roles, description, notes,
+        )
 
     emoji = RATING_COLORS.get(rating, "⚪")
-    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles)
+    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles, description, notes)
 
 
 @st.cache_resource
@@ -334,17 +340,28 @@ def search_dekel(ingredient):
 
 HERO_HTML = """
 <div class="hero">
-    <div class="blob b1"></div><div class="blob b2"></div>
-    <span class="spark s1">✨</span><span class="spark s2">🌸</span><span class="spark s3">✨</span>
-    <div class="badge">🌿 מדריך הרכיבים שלך</div>
+    <div class="scan"></div>
+    <div class="badge"><i></i>INGREDIENT SCANNER</div>
     <h1>בדיקת רכיבים</h1>
-    <p>מצלמות את רשימת הרכיבים, ומגלות מה באמת יש בתוך מוצרי הטיפוח.</p>
-    <div class="steps"><span>📸 מצלמות</span><span>🔍 בודקות</span><span>🌷 מבינות</span></div>
+    <p>מצלמים את רשימת הרכיבים, והמערכת סורקת כל רכיב ומראה מה באמת יש במוצר.</p>
+    <div class="steps">
+        <span><b>01</b> צילום</span>
+        <span><b>02</b> סריקה</span>
+        <span><b>03</b> הבנה</span>
+    </div>
 </div>
 """
 
 st.markdown(HERO_HTML, unsafe_allow_html=True)
 st.link_button("🌐 פתחי את אתר דקל", "https://thedekel.co.il/#milonid")
+
+try:
+    st.html(
+        f"<script>{(Path(__file__).parent / 'fx.js').read_text(encoding='utf-8')}</script>",
+        unsafe_allow_javascript=True,
+    )
+except TypeError:
+    pass
 
 if "ocr_ingredients_text" not in st.session_state:
     st.session_state.ocr_ingredients_text = ""
@@ -354,11 +371,12 @@ if "results" not in st.session_state:
     st.session_state.results = {}
 
 
-def section(icon, title, subtitle=""):
+def section(icon, title, subtitle="", index=""):
     sub = f'<div class="s">{html.escape(subtitle)}</div>' if subtitle else ""
+    num = f'<div class="n">{html.escape(index)}</div>' if index else ""
     st.markdown(
         f'<div class="sec"><div class="ico">{icon}</div>'
-        f'<div><div class="t">{html.escape(title)}</div>{sub}</div></div>',
+        f'<div><div class="t">{html.escape(title)}</div>{sub}</div>{num}</div>',
         unsafe_allow_html=True,
     )
 
@@ -401,22 +419,36 @@ def split_ingredients(text):
     return list(dict.fromkeys(items))
 
 
-def render_result(result):
-    if result["emoji"] == "🔴":
-        st.error(result["text"])
-    elif result["emoji"] == "🟡":
-        st.warning(result["text"])
-    elif result["emoji"] == "🟢":
-        st.success(result["text"])
-    else:
-        st.info(result["text"])
+def result_card_html(name, result):
+    kind = EMOJI_CLASS.get(result["emoji"], "other")
+    chip = f'<span class="chip {kind}">{html.escape(result["emoji"])} {html.escape(result["rating"])}</span>'
+    role = f'<div class="rc-role">{html.escape(result["role"])}</div>' if result.get("role") else ""
+
+    description = result.get("description") or ""
+    if not description and not result.get("role"):
+        description = result["text"].split("\n", 1)[-1] if result["emoji"] in ("⚪", "🟢", "🟡", "🔴") else result["text"]
+    paragraphs = "".join(
+        f"<p>{html.escape(line)}</p>" for line in description.split("\n") if line.strip()
+    )
+    notes = "".join(f"<span>{html.escape(n)}</span>" for n in result.get("notes", []))
+    notes = f'<div class="rc-notes">{notes}</div>' if notes else ""
+
+    return (
+        f'<div class="rcard {kind}"><div class="rc-head">'
+        f'<span class="rc-name">{html.escape(name)}</span>{chip}</div>'
+        f"{role}{paragraphs}{notes}</div>"
+    )
+
+
+def render_result(name, result):
+    st.markdown(result_card_html(name, result), unsafe_allow_html=True)
 
 
 def show_result(ingredient):
     if ingredient not in st.session_state.results:
-        with st.spinner(f"בודקת את {ingredient} באתר דקל..."):
+        with st.spinner(f"סורקת את {ingredient}..."):
             st.session_state.results.update(search_many([ingredient]))
-    render_result(st.session_state.results[ingredient])
+    render_result(ingredient, st.session_state.results[ingredient])
 
 
 def check_all(ingredients):
@@ -424,14 +456,14 @@ def check_all(ingredients):
     if not todo:
         return
     started = time.time()
-    bar = st.progress(0.0, text="מתחילה בדיקה...")
+    bar = st.progress(0.0, text="מתחילה סריקה...")
 
     def on_progress(done, total, name):
-        bar.progress(done / total, text=f"{done}/{total}: {name}")
+        bar.progress(done / total, text=f"{done}/{total} · {name}")
 
     st.session_state.results.update(search_many(todo, on_progress))
     bar.empty()
-    st.caption(f"נבדקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
+    st.caption(f"נסרקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
 
 
 def show_summary(ingredients):
@@ -445,13 +477,13 @@ def show_summary(ingredients):
     bad = sum(r["emoji"] == "🔴" for r in results)
     other = len(results) - good - caution - bad
 
-    section("📊", "הסיכום שלך", f"{len(results)} רכיבים נבדקו")
+    section("📊", "תוצאות הסריקה", f"{len(results)} רכיבים נסרקו", "03")
     st.markdown(
         '<div class="tiles">'
-        f'<div class="tile good"><div class="num">{good}</div><div class="lbl">🟢 טובים</div></div>'
-        f'<div class="tile caution"><div class="num">{caution}</div><div class="lbl">🟡 על תנאי</div></div>'
-        f'<div class="tile bad"><div class="num">{bad}</div><div class="lbl">🔴 רעים</div></div>'
-        f'<div class="tile other"><div class="num">{other}</div><div class="lbl">⚪ אחר</div></div>'
+        f'<div class="tile good"><div class="num" data-t="{good}">{good}</div><div class="lbl">טובים</div></div>'
+        f'<div class="tile caution"><div class="num" data-t="{caution}">{caution}</div><div class="lbl">על תנאי</div></div>'
+        f'<div class="tile bad"><div class="num" data-t="{bad}">{bad}</div><div class="lbl">רעים</div></div>'
+        f'<div class="tile other"><div class="num" data-t="{other}">{other}</div><div class="lbl">אחר</div></div>'
         "</div>",
         unsafe_allow_html=True,
     )
@@ -474,15 +506,15 @@ def show_summary(ingredients):
 
     flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
     if flagged:
-        section("🌼", "כדאי לשים לב", "רכיבים שמסומנים כ'על תנאי' או 'רע'")
+        section("⚡", "כדאי לשים לב", "רכיבים שמסומנים כ'על תנאי' או 'רע'")
         for ing in flagged:
             r = st.session_state.results[ing]
-            with st.expander(f"{r['emoji']} {ing} - {r['rating']}"):
-                st.write(r["text"])
+            with st.expander(f"{r['emoji']} {ing} · {r['rating']}"):
+                render_result(ing, r)
 
 
 with st.container(border=True):
-    section("📸", "צילום של רשימת הרכיבים", "מעלות תמונה ברורה של הרכיבים מאחורי האריזה")
+    section("📸", "צילום של רשימת הרכיבים", "מעלות תמונה ברורה של הרכיבים מאחורי האריזה", "01")
     uploaded_image = st.file_uploader(
         "העלי תמונה של רשימת רכיבים", type=["jpg", "jpeg", "png"], label_visibility="collapsed"
     )
@@ -491,7 +523,7 @@ with st.container(border=True):
         image = Image.open(uploaded_image)
         st.image(image, caption="התמונה שהועלתה", width="stretch")
 
-        if st.button("✨ חלצי את הרכיבים מהתמונה"):
+        if st.button("✨ סרקי את הרכיבים מהתמונה"):
             started = time.time()
             with st.spinner("קוראת את הטקסט מהתמונה..."):
                 extracted_text = extract_text(uploaded_image.getvalue())
@@ -505,7 +537,7 @@ with st.container(border=True):
 
 if uploaded_image and st.session_state.ocr_ingredients_text:
     with st.container(border=True):
-        section("📝", "הרכיבים שזוהו", "ה-OCR לא תמיד מדויק, אפשר לתקן כאן (רכיב אחד בכל שורה)")
+        section("📝", "הרכיבים שזוהו", "ה-OCR לא תמיד מדויק, אפשר לתקן כאן (רכיב אחד בכל שורה)", "02")
         st.session_state.ocr_ingredients_text = st.text_area(
             "רשימת רכיבים לעריכה",
             value=st.session_state.ocr_ingredients_text,
@@ -515,7 +547,7 @@ if uploaded_image and st.session_state.ocr_ingredients_text:
 
         ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
 
-        if st.button(f"🌸 בדקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
+        if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
             check_all(ingredient_list)
 
         show_summary(ingredient_list)
@@ -539,6 +571,6 @@ with st.container(border=True):
             st.warning("נא להזין שם רכיב")
 
 st.markdown(
-    '<div class="footer">נוצר באהבה 🌸 · המידע מבוסס על מילון הרכיבים של דקל</div>',
+    '<div class="footer">המידע מבוסס על מילון הרכיבים של דקל</div>',
     unsafe_allow_html=True,
 )
