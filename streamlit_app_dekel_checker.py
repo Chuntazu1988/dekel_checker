@@ -174,10 +174,10 @@ BATCH_JS = """async (names) => {
 }"""
 
 
-def _result(emoji, rating, text, role="", description="", notes=()):
+def _result(emoji, rating, text, role="", description="", notes=(), flags=()):
     return {
         "emoji": emoji, "rating": rating, "text": text, "role": role,
-        "description": description, "notes": list(notes),
+        "description": description, "notes": list(notes), "flags": list(flags),
     }
 
 
@@ -238,12 +238,16 @@ def _to_result(item):
     description = _plain_text(detail.get("description"))
 
     notes = []
+    flags = []
     if detail.get("increasesPhotoSensitivity") is True:
         notes.append("☀️ מגביר רגישות לשמש")
+        flags.append("sun")
     if detail.get("contraindicatedInPregnancy") is True:
         notes.append("🤰 לא מומלץ בהיריון")
+        flags.append("pregnancy")
     if detail.get("contraindicatedWhileBreastfeeding") is True:
         notes.append("🍼 לא מומלץ בהנקה")
+        flags.append("breastfeeding")
 
     role_line = f"> תפקיד עיקרי: {roles}" if roles else ""
     body = "\n\n".join(part for part in (role_line, description, " | ".join(notes)) if part)
@@ -251,11 +255,11 @@ def _to_result(item):
     if not rating:
         return _result(
             "⚪", "אין דירוג", f"⚪ עדיין אין דירוג באתר דקל עבור \"{name}\"\n\n{body}",
-            roles, description, notes,
+            roles, description, notes, flags,
         )
 
     emoji = RATING_COLORS.get(rating, "⚪")
-    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles, description, notes)
+    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles, description, notes, flags)
 
 
 @st.cache_resource
@@ -483,6 +487,76 @@ def check_all(ingredients):
     st.caption(f"נסרקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
 
 
+SCORE_WEIGHTS = {"מעולה": 100, "טוב": 95, "עובר": 85, "על תנאי": 55, "רע": 15}
+
+FLAG_INFO = {
+    "sun": ("☀️", "מגביר רגישות לשמש", "כדאי להקפיד על קרם הגנה ביום."),
+    "pregnancy": ("🤰", "לא מומלץ בהיריון", "לפי המילון של דקל. כדאי להתייעץ עם רופא/ה."),
+    "breastfeeding": ("🍼", "לא מומלץ בהנקה", "לפי המילון של דקל. כדאי להתייעץ עם רופא/ה."),
+}
+
+
+def product_score(results):
+    rated = [r for r in results if r["rating"] in SCORE_WEIGHTS]
+    if not rated:
+        return None
+    average = sum(SCORE_WEIGHTS[r["rating"]] for r in rated) / len(rated)
+    bad = sum(r["rating"] == "רע" for r in rated)
+    return max(0, round(average - 5 * bad)), len(rated)
+
+
+def score_verdict(score):
+    if score >= 85:
+        return "good", "מוצר נקי ומומלץ"
+    if score >= 70:
+        return "good", "מוצר טוב, עם כמה נקודות קטנות"
+    if score >= 50:
+        return "caution", "כדאי לשים לב לכמה רכיבים"
+    return "bad", "כדאי לבדוק את המוצר היטב"
+
+
+def score_card_html(results):
+    scored = product_score(results)
+    if scored is None:
+        return ""
+    score, rated = scored
+    kind, verdict = score_verdict(score)
+    good = sum(r["emoji"] == "🟢" for r in results)
+    caution = sum(r["emoji"] == "🟡" for r in results)
+    bad = sum(r["emoji"] == "🔴" for r in results)
+    unrated = len(results) - rated
+    extra = f" ל-{unrated} רכיבים אין דירוג באתר ולכן לא נכללו בציון." if unrated else ""
+    return (
+        f'<div class="score-card {kind}">'
+        f'<div class="ring" style="--score:{score}"><div class="val"><span class="num" data-t="{score}">{score}</span>'
+        '<small>/100</small></div></div>'
+        '<div class="score-text">'
+        '<div class="score-kicker">ציון משוער למוצר</div>'
+        f'<div class="score-verdict">{html.escape(verdict)}</div>'
+        f'<div class="score-detail">{good} רכיבים טובים, {caution} על תנאי, {bad} רעים.{html.escape(extra)}</div>'
+        '<div class="score-note">הציון מחושב על ידי האפליקציה לפי הדירוגים של דקל, והוא להערכה בלבד.</div>'
+        "</div></div>"
+    )
+
+
+def warnings_card_html(checked, results):
+    rows = []
+    for code, (icon, title, hint) in FLAG_INFO.items():
+        names = [ing for ing, r in zip(checked, results) if code in r.get("flags", [])]
+        if not names:
+            continue
+        chips = "".join(f"<span>{html.escape(n)}</span>" for n in names)
+        rows.append(
+            f'<div class="warn-row"><div class="warn-ico">{icon}</div><div>'
+            f'<div class="warn-title">{html.escape(title)} <b>({len(names)})</b></div>'
+            f'<div class="warn-chips">{chips}</div>'
+            f'<div class="warn-hint">{html.escape(hint)}</div></div></div>'
+        )
+    if not rows:
+        return ""
+    return '<div class="warn-card"><div class="warn-head">⚡ אזהרות ברמת המוצר</div>' + "".join(rows) + "</div>"
+
+
 def show_summary(ingredients):
     checked = [ing for ing in ingredients if ing in st.session_state.results]
     if not checked:
@@ -495,6 +569,9 @@ def show_summary(ingredients):
     other = len(results) - good - caution - bad
 
     section("📊", "תוצאות הסריקה", f"{len(results)} רכיבים נסרקו", "03")
+    for card in (score_card_html(results), warnings_card_html(checked, results)):
+        if card:
+            st.markdown(card, unsafe_allow_html=True)
     st.markdown(
         '<div class="tiles">'
         f'<div class="tile good"><div class="num" data-t="{good}">{good}</div><div class="lbl">טובים</div></div>'
@@ -538,6 +615,7 @@ with st.container(border=True):
         label_visibility="collapsed",
         key=f"uploader_{st.session_state.uploader_key}",
     )
+    st.caption("📱 בטלפון: לוחצים על Upload ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
 
     if uploaded_image:
         image = Image.open(uploaded_image)
