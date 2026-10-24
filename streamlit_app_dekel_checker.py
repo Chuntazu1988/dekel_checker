@@ -1,3 +1,4 @@
+import base64
 import html
 import io
 import json
@@ -24,6 +25,14 @@ st.markdown(
     f"<style>{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
     unsafe_allow_html=True,
 )
+
+_mascot_file = Path(__file__).parent / "assets" / "dekel_verified.webp"
+if _mascot_file.exists():
+    _mascot_b64 = base64.b64encode(_mascot_file.read_bytes()).decode()
+    st.markdown(
+        f"<style>.dv-mascot {{ background-image: url(data:image/webp;base64,{_mascot_b64}); }}</style>",
+        unsafe_allow_html=True,
+    )
 
 BASE_DIR = Path(__file__).parent
 ENV_PATH = BASE_DIR / ".env"
@@ -865,8 +874,9 @@ def product_card_html(product):
         link = f'<a class="plink" href="{html.escape(url)}" target="_blank" rel="noopener">לעמוד המוצר באתר דקל ↗</a>'
 
     name2 = f'<div class="pname2">{html.escape(product["name2"])}</div>' if product.get("name2") else ""
+    mascot = '<span class="dv-mascot" role="img" aria-label="Dekel Verified"></span>' if verified else ""
     return (
-        f'<div class="pcard {"verified" if verified else "notverified"}">{img}<div class="pbody">'
+        f'<div class="pcard {"verified" if verified else "notverified"}">{mascot}{img}<div class="pbody">'
         f'<div class="pco">{html.escape(product["company"])}</div>'
         f'<div class="pname">{html.escape(product["name"])}</div>{name2}'
         f'<div class="pseal">{seal}</div>{paragraphs}{link}</div></div>'
@@ -1100,6 +1110,6 @@ with st.container(border=True):
 
 st.markdown(
     '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'
-    '<div class="footer">המידע מבוסס על מילון הרכיבים של דקל</div>',
+    '<div class="footer">אפליקציה לא רשמית ולא קשורה לדקל. המידע מבוסס על מילון הרכיבים והקטלוג באתר דקל.</div>',
     unsafe_allow_html=True,
 )
