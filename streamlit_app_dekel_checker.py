@@ -1,6 +1,7 @@
 import base64
 import html
 import io
+import datetime
 import json
 import os
 import re
@@ -297,6 +298,16 @@ def _ingredient_cache():
 
 
 CACHE_TTL_SECONDS = 24 * 60 * 60
+INGREDIENT_DB_PATH = Path(__file__).parent / "data" / "ingredients.json"
+
+
+@st.cache_resource(show_spinner=False)
+def load_ingredient_db():
+    """מאגר מקומי שנבנה מסריקת הקטלוג: רכיבים, רשימות רכיבים של מוצרים, והוראות שימוש. חוסך קריאות לאתר."""
+    try:
+        return json.loads(INGREDIENT_DB_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"ingredients": {}, "products": {}, "meta": {}}
 
 
 def search_many(ingredients, on_progress=None):
@@ -308,6 +319,11 @@ def search_many(ingredients, on_progress=None):
         for ing in ingredients
         if ing.lower() in cache and now - cache[ing.lower()][0] < CACHE_TTL_SECONDS
     }
+    local = load_ingredient_db()["ingredients"]
+    for ing in ingredients:
+        record = local.get(ing.lower())
+        if ing not in cached and record:
+            cached[ing] = _to_result({"name": ing, "detail": record})
     missing = [ing for ing in ingredients if ing not in cached]
     if not missing:
         return cached
@@ -456,6 +472,106 @@ def find_products(queries):
     return [_product_from_item(item) for item in items or []]
 
 
+COUPONS_JS = """() => {
+  const rows = [];
+  const leaves = [...document.querySelectorAll('p,div,span,li')].filter(
+    e => /קוד קופון|בתוקף/.test(e.textContent) && ![...e.children].some(c => /קוד קופון|בתוקף/.test(c.textContent)));
+  for (const leaf of leaves) {
+    let card = leaf;
+    while (card.parentElement && !card.querySelector('img')) card = card.parentElement;
+    const text = card.innerText.trim();
+    if (!text) continue;
+    const links = [...card.querySelectorAll('a[href]')];
+    const buy = links.find(a => a.innerText.includes('לרכישה')) || links[0];
+    const logo = [...card.querySelectorAll('img')].map(i => i.src).find(src => src && !src.includes('emoji'));
+    rows.push({text, href: buy ? buy.href : '', logo: logo || ''});
+  }
+  return rows;
+}"""
+
+COUPON_EXPIRY = re.compile(r"בתוקף עד\s*(\d{1,2})\.(\d{1,2})\.(\d{4})")
+COUPON_CODE = re.compile(r"קוד קופון\s+([A-Za-z0-9_\-]+)")
+
+
+def parse_coupons(rows, today=None):
+    today = today or datetime.date.today()
+    coupons, seen = [], set()
+    for row in rows:
+        lines = [part.strip() for part in re.split(r"[\t\n]+", row["text"]) if part.strip()]
+        if len(lines) < 2:
+            continue
+        title, body = lines[0], lines[1:]
+        expiry_match = next((m for m in map(COUPON_EXPIRY.search, body) if m), None)
+        expires = None
+        if expiry_match:
+            day, month, year = (int(g) for g in expiry_match.groups())
+            try:
+                expires = datetime.date(year, month, day)
+            except ValueError:
+                expires = None
+        code_match = next((m for m in map(COUPON_CODE.search, body) if m), None)
+        description = " ".join(
+            line for line in body
+            if not COUPON_EXPIRY.search(line) and not COUPON_CODE.search(line)
+            and line.strip("| ") not in ("לרכישה >>", "")
+        )
+        key = (title, description)
+        if key in seen or (expires and expires < today):
+            continue
+        seen.add(key)
+        coupons.append({
+            "title": title, "description": description, "code": code_match.group(1) if code_match else "",
+            "expires": expires, "url": row.get("href", ""), "logo": row.get("logo", ""),
+        })
+    coupons.sort(key=lambda c: (c["expires"] is None, c["expires"] or today))
+    return coupons
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_coupons():
+    """קוראת את ההטבות הפעילות מדף הבית של דקל. שגיאות לא נשמרות במטמון."""
+    ensure_playwright_browser()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            page = _new_context(p, browser).new_page()
+            page.goto("https://thedekel.co.il/", timeout=30000)
+            page.wait_for_selector("text=קוד קופון", state="attached", timeout=15000)
+            rows = page.evaluate(COUPONS_JS)
+        finally:
+            browser.close()
+    coupons = parse_coupons(rows)
+    if not coupons:
+        raise RuntimeError("no-coupons")
+    return coupons
+
+
+def coupon_card_html(coupon):
+    today = datetime.date.today()
+    expires = coupon["expires"]
+    if expires:
+        days = (expires - today).days
+        badge_class = "soon" if days <= 3 else ""
+        when = "פג היום" if days == 0 else f"בתוקף עד {expires.strftime('%d.%m.%Y')}"
+    else:
+        badge_class, when = "", "ללא תאריך תפוגה"
+    logo = f'<img class="cp-logo" src="{html.escape(coupon["logo"])}" alt="" referrerpolicy="no-referrer">' if coupon["logo"] else ""
+    code = (
+        f'<div class="cp-code"><span>קוד קופון</span><b>{html.escape(coupon["code"])}</b></div>'
+        if coupon["code"] else ""
+    )
+    link = (
+        f'<a class="plink" href="{html.escape(coupon["url"])}" target="_blank" rel="noopener">לרכישה ↗</a>'
+        if coupon["url"].startswith("http") else ""
+    )
+    return (
+        f'<div class="cp-card">{logo}<div class="cp-body">'
+        f'<div class="cp-title">{html.escape(coupon["title"])}'
+        f'<span class="cp-when {badge_class}">{html.escape(when)}</span></div>'
+        f'<div class="cp-desc">{html.escape(coupon["description"])}</div>{code}{link}</div></div>'
+    )
+
+
 def _extract_json_array(page_html, key):
     start = page_html.find(f'"{key}":[')
     if start < 0:
@@ -498,6 +614,23 @@ def _extract_product_object(page_html):
 
 def load_product_ingredients(slug):
     """מביאה את רשימת הרכיבים המלאה, הדירוגים והוראות השימוש מעמוד המוצר של דקל."""
+    local = load_ingredient_db()
+    if slug in local["products"]:
+        names, results = [], {}
+        for name in local["products"][slug]:
+            record = local["ingredients"].get(name.lower())
+            if record and name not in results:
+                names.append(name)
+                results[name] = _to_result({"name": name, "detail": record})
+        info = local["meta"].get(slug, {})
+        index_entry = next((e for e in (load_catalog_index() or {}).get("products", []) if e["slug"] == slug), {})
+        if names:
+            return names, results, {
+                "time": index_entry.get("time"),
+                "description": _plain_text(info.get("description")),
+                "key_ingredients": info.get("key") or [],
+            }
+
     page_html = _with_logged_in_page(lambda page: page.evaluate(PRODUCT_PAGE_JS, slug))
     records = _extract_json_array(page_html, "ingredientsInTheList")
     if not records:
@@ -700,7 +833,7 @@ def usage_groups_html(names, results):
 # ---- פעילים שחשוב לדעת עליהם (הלוגיקה והכללים במודול compat) ----
 def detect_actives(names, results, key_ingredients=(), top=15):
     return detect_actives_from_names(
-        ((name, results[name].get("group_id")) for name in names), key_ingredients, top
+        ((name, results.get(name, {}).get("group_id")) for name in names), key_ingredients, top
     )
 
 
@@ -831,10 +964,27 @@ def show_compatibility(names, results, product, meta):
         key="compat_types",
         help="ברירת המחדל: מוצרי פנים. אפשר להוסיף גם שיער, גוף ועוד.",
     )
-    groups = {
-        bucket: [(entry, conflicts) for entry, conflicts in rows if _shown_category(entry, chosen)]
-        for bucket, rows in groups.items()
-    }
+    query = st.text_input(
+        "חיפוש חופשי",
+        placeholder="חיפוש חופשי: שם מוצר או מותג, למשל CeraVe",
+        key="compat_query",
+        label_visibility="collapsed",
+    ).strip().lower()
+    if query:
+        # חיפוש חופשי מחפש בכל הקטגוריות
+        chosen = options
+        groups = {
+            bucket: [
+                (entry, conflicts) for entry, conflicts in rows
+                if query in f"{entry['name']} {entry.get('name2', '')} {entry['company']}".lower()
+            ]
+            for bucket, rows in groups.items()
+        }
+    else:
+        groups = {
+            bucket: [(entry, conflicts) for entry, conflicts in rows if _shown_category(entry, chosen)]
+            for bucket, rows in groups.items()
+        }
 
     tab_ok, tab_separate, tab_avoid = st.tabs([
         f"✅ מתאימים ({len(groups['ok'])})",
@@ -1301,10 +1451,6 @@ def show_summary(ingredients):
         unsafe_allow_html=True,
     )
 
-    product = st.session_state.selected_product
-    if product and product.get("slug") and product.get("source") != "obf":
-        show_compatibility(checked, st.session_state.results, product, st.session_state.product_meta)
-
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
         f'<td class="ing">{html.escape(ing)}</td>'
@@ -1459,6 +1605,10 @@ def continue_search():
     st.rerun()
 
 
+CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
+TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "🧪 בדיקת רכיבים", "📦 זיהוי מוצר", "🤝 שילובים", "🎟️ קופונים"
+
+
 def search_by_typed_name(term):
     try:
         with st.spinner("מחפשת בקטלוג של דקל..."):
@@ -1491,6 +1641,7 @@ def choose_dekel_product(product):
     st.session_state.product_hits = None
     if product.get("verified"):
         st.session_state.celebrate_id = int(time.time() * 1000)
+    st.session_state.goto_tab = TAB_INGREDIENTS
     st.rerun()
 
 
@@ -1503,6 +1654,7 @@ def choose_obf_product(candidate):
     st.session_state.product_meta = None
     st.session_state.product_candidates = []
     st.session_state.product_status = None
+    st.session_state.goto_tab = TAB_INGREDIENTS
     st.rerun()
 
 
@@ -1571,34 +1723,12 @@ def selected_product_banner():
         st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
     else:
         st.markdown(product_card_html(product), unsafe_allow_html=True)
+    st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
 
 
-MODE_LIST, MODE_PRODUCT = "📋 רשימת הרכיבים באריזה", "📦 צילום המוצר עצמו"
-
-with st.container(border=True):
-    section("📸", "צילום", "מצלמות את רשימת הרכיבים, או את המוצר עצמו ואנחנו נזהה אותו", "01")
-    mode = st.segmented_control(
-        "מה מצלמים?",
-        [MODE_LIST, MODE_PRODUCT],
-        default=MODE_LIST,
-        label_visibility="collapsed",
-        key=f"mode_{st.session_state.uploader_key}",
-    )
-
-    if mode == MODE_PRODUCT:
-        product_photo = st.file_uploader(
-            "העלי תמונה של המוצר",
-            type=["jpg", "jpeg", "png"],
-            label_visibility="collapsed",
-            key=f"product_photo_{st.session_state.uploader_key}",
-        )
-        st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: Upload ואז 'צילום'.")
-        if product_photo:
-            st.image(preview_image(open_image(product_photo)), caption="תמונת המוצר", width="stretch")
-            if st.button("🔎 זהי את המוצר"):
-                identify_product(product_photo.getvalue())
-        render_candidates()
-    else:
+def tab_ingredients():
+    with st.container(border=True):
+        section("📸", "צילום רשימת הרכיבים", "מצלמות את הרכיבים שבאריזה, והמערכת קוראת אותם")
         uploaded_image = st.file_uploader(
             "העלי תמונה של רשימת רכיבים",
             type=["jpg", "jpeg", "png"],
@@ -1624,77 +1754,142 @@ with st.container(border=True):
                 st.session_state.selected_product = None
                 st.session_state.product_meta = None
 
-if st.session_state.ocr_ingredients_text:
+    if st.session_state.ocr_ingredients_text:
+        with st.container(border=True):
+            section("📝", "הרכיבים", "אפשר לתקן את הרשימה (רכיב אחד בכל שורה) לפני הסריקה")
+            selected_product_banner()
+            st.session_state.ocr_ingredients_text = st.text_area(
+                "רשימת רכיבים לעריכה",
+                value=st.session_state.ocr_ingredients_text,
+                height=200,
+                label_visibility="collapsed",
+            )
+
+            ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
+
+            if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
+                check_all(ingredient_list)
+
+            show_summary(ingredient_list)
+
+            with st.expander("בדיקה של רכיב בודד מהרשימה"):
+                for ing in ingredient_list:
+                    if st.button(f"בדקי {ing}", key=f"img_{ing}"):
+                        st.session_state.selected_ingredient = ing
+    else:
+        st.info("עוד אין רכיבים לבדיקה. צלמי רשימת רכיבים, או זהי מוצר בלשונית 'זיהוי מוצר'.")
+
+    if st.session_state.selected_ingredient:
+        show_result(st.session_state.selected_ingredient)
+
     with st.container(border=True):
-        section("📝", "הרכיבים", "אפשר לתקן את הרשימה (רכיב אחד בכל שורה) לפני הסריקה", "02")
-        selected_product_banner()
-        st.session_state.ocr_ingredients_text = st.text_area(
-            "רשימת רכיבים לעריכה",
-            value=st.session_state.ocr_ingredients_text,
-            height=200,
+        section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
+        ingredient_name = st.text_input(
+            "הכניסי רכיב:",
             label_visibility="collapsed",
+            placeholder="Niacinamide",
+            key=f"manual_{st.session_state.manual_key}",
         )
 
-        ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
+        if st.button("חפשי רכיב"):
+            if ingredient_name.strip():
+                show_result(ingredient_name.strip())
+            else:
+                st.warning("נא להזין שם רכיב")
 
-        if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
-            check_all(ingredient_list)
 
-        show_summary(ingredient_list)
+def tab_product():
+    with st.container(border=True):
+        section("📦", "זיהוי מוצר מצילום", "מצלמות את המוצר עצמו, ואנחנו מוצאות אותו בקטלוג של דקל")
+        product_photo = st.file_uploader(
+            "העלי תמונה של המוצר",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed",
+            key=f"product_photo_{st.session_state.uploader_key}",
+        )
+        st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: Upload ואז 'צילום'.")
+        if product_photo:
+            st.image(preview_image(open_image(product_photo)), caption="תמונת המוצר", width="stretch")
+            if st.button("🔎 זהי את המוצר"):
+                identify_product(product_photo.getvalue())
+        render_candidates()
 
-        with st.expander("בדיקה של רכיב בודד"):
-            for ing in ingredient_list:
-                if st.button(f"בדקי {ing}", key=f"img_{ing}"):
-                    st.session_state.selected_ingredient = ing
+    with st.container(border=True):
+        section("🏷️", "האם המוצר מאושר דקל?", "חפשי מוצר לפי שם או מותג ונבדוק אם הוא Dekel Verified")
+        product_term = st.text_input(
+            "שם מוצר או מותג",
+            label_visibility="collapsed",
+            placeholder="The Ordinary, CeraVe, Cetaphil...",
+            key=f"product_{st.session_state.manual_key}",
+        )
 
-if st.session_state.selected_ingredient:
-    show_result(st.session_state.selected_ingredient)
+        if st.button("בדקי מוצר", key="product_search"):
+            if len(product_term.strip()) < 2:
+                st.warning("נא להזין שם מוצר או מותג")
+            else:
+                try:
+                    with st.spinner("מחפשת בקטלוג של דקל..."):
+                        st.session_state.product_hits = search_products(product_term.strip())
+                except Exception:
+                    st.session_state.product_hits = None
+                    st.error("לא הצלחתי לבדוק את המוצר כרגע. נסי שוב בעוד רגע.")
 
-with st.container(border=True):
-    section("🏷️", "האם המוצר מאושר דקל?", "חפשי מוצר לפי שם או מותג ונבדוק אם הוא Dekel Verified", "04")
-    product_term = st.text_input(
-        "שם מוצר או מותג",
-        label_visibility="collapsed",
-        placeholder="The Ordinary, CeraVe, Cetaphil...",
-        key=f"product_{st.session_state.manual_key}",
-    )
+        found = st.session_state.product_hits
+        if found is not None and not found:
+            st.info("לא נמצא מוצר כזה בקטלוג של דקל. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
+        elif found:
+            verified_count = sum(p["verified"] for p in found)
+            st.caption(f"נמצאו {len(found)} מוצרים, {verified_count} מהם Dekel Verified")
+            for index, product in enumerate(found[:8]):
+                st.markdown(product_card_html(product), unsafe_allow_html=True)
+                if st.button("✔ זה המוצר שלי, טעני את הרכיבים", key=f"search_pick_{index}"):
+                    choose_dekel_product(product)
 
-    if st.button("בדקי מוצר", key="product_search"):
-        if len(product_term.strip()) < 2:
-            st.warning("נא להזין שם מוצר או מותג")
-        else:
-            try:
-                with st.spinner("מחפשת בקטלוג של דקל..."):
-                    st.session_state.product_hits = search_products(product_term.strip())
-            except Exception:
-                st.session_state.product_hits = None
-                st.error("לא הצלחתי לבדוק את המוצר כרגע. נסי שוב בעוד רגע.")
 
-    found = st.session_state.product_hits
-    if found is not None and not found:
-        st.info("לא נמצא מוצר כזה בקטלוג של דקל. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
-    elif found:
-        verified_count = sum(p["verified"] for p in found)
-        st.caption(f"נמצאו {len(found)} מוצרים, {verified_count} מהם Dekel Verified")
-        for index, product in enumerate(found[:8]):
-            st.markdown(product_card_html(product), unsafe_allow_html=True)
-            if st.button("✔ זה המוצר שלי, טעני את הרכיבים", key=f"search_pick_{index}"):
-                choose_dekel_product(product)
+def tab_compat():
+    product = st.session_state.selected_product
+    if not (product and product.get("slug") and product.get("source") != "obf"):
+        st.info(
+            "כדי לראות אילו מוצרים אפשר לשלב, בחרי מוצר של דקל בלשונית 'זיהוי מוצר'. "
+            "ההשוואה זמינה למוצרים שנמצאו בקטלוג של דקל."
+        )
+        st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
+        return
+    selected_product_banner()
+    names = split_ingredients(st.session_state.ocr_ingredients_text)
+    show_compatibility(names, st.session_state.results, product, st.session_state.product_meta)
 
-with st.container(border=True):
-    section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
-    ingredient_name = st.text_input(
-        "הכניסי רכיב:",
-        label_visibility="collapsed",
-        placeholder="Niacinamide",
-        key=f"manual_{st.session_state.manual_key}",
-    )
 
-    if st.button("חפשי רכיב"):
-        if ingredient_name.strip():
-            show_result(ingredient_name.strip())
-        else:
-            st.warning("נא להזין שם רכיב")
+def tab_coupons():
+    with st.container(border=True):
+        section("🎟️", "הטבות וקופונים", "הטבות פעילות באתר דקל, מעודכן אוטומטית")
+        if st.button("🔄 רענני הטבות", key="refresh_coupons"):
+            fetch_coupons.clear()
+        try:
+            with st.spinner("בודקת אילו הטבות פעילות באתר..."):
+                coupons = fetch_coupons()
+        except Exception:
+            st.error("לא הצלחתי לטעון את ההטבות כרגע. נסי שוב בעוד רגע.")
+            st.link_button("🌐 להטבות באתר דקל", "https://thedekel.co.il/#promotions")
+            return
+        st.caption(f"{len(coupons)} הטבות פעילות")
+        st.markdown("".join(coupon_card_html(c) for c in coupons), unsafe_allow_html=True)
+        st.caption("ההטבות נקראות מהאתר של דקל וייתכן שהן משתנות. כדאי לוודא את התנאים בעמוד ההטבה.")
+
+
+NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS]
+if st.session_state.get("goto_tab") in NAV_TABS:
+    st.session_state.nav = st.session_state.pop("goto_tab")
+if st.session_state.get("nav") not in NAV_TABS:
+    st.session_state.nav = TAB_INGREDIENTS
+
+active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visibility="collapsed") or TAB_INGREDIENTS
+{
+    TAB_INGREDIENTS: tab_ingredients,
+    TAB_PRODUCT: tab_product,
+    TAB_COMPAT: tab_compat,
+    TAB_COUPONS: tab_coupons,
+}[active_tab]()
 
 st.markdown(
     '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'

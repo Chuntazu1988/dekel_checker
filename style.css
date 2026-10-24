@@ -636,3 +636,44 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
     *, *::before, *::after { animation: none !important; transition: none !important; }
     #fx-bg { display: none; }
 }
+
+/* ---------- ניווט בין לשוניות ---------- */
+.st-key-nav [data-testid="stButtonGroup"] { display: flex; width: 100%; gap: 0.4rem; flex-wrap: wrap; }
+.st-key-nav [data-testid="stButtonGroup"] button {
+    flex: 1 1 0; min-width: 6.5rem; justify-content: center; padding: 0.75rem 0.6rem; border-radius: 16px;
+    font: 600 0.98rem 'Rubik', 'Heebo', sans-serif;
+    background: var(--glass); border: 1px solid var(--edge); color: var(--ink);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.st-key-nav [data-testid="stButtonGroup"] button:hover { transform: translateY(-2px); border-color: var(--pink); }
+.st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"],
+.st-key-nav [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] {
+    background: linear-gradient(135deg, rgba(255, 111, 181, 0.35), rgba(139, 92, 246, 0.35));
+    border-color: var(--pink); box-shadow: 0 8px 26px rgba(255, 111, 181, 0.25);
+}
+.st-key-nav { margin-bottom: 1rem; width: 100% !important; }
+.st-key-nav [data-testid="stWidgetLabel"] { display: none; }
+
+/* תגיות בבחירה מרובה: רווח בין המילה לאיקס */
+[data-baseweb="tag"] { padding-inline: 0.8rem 0.5rem !important; gap: 0.7rem; }
+[data-baseweb="tag"] [role="presentation"] { margin-inline-start: 0.5rem; }
+
+/* ---------- קופונים והטבות ---------- */
+.cp-card {
+    display: flex; gap: 1rem; align-items: flex-start; margin: 0 0 0.8rem; padding: 1rem 1.1rem;
+    border-radius: 18px; background: var(--glass); border: 1px solid var(--edge);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.cp-card:hover { transform: translateY(-3px); border-color: var(--aqua); }
+.cp-logo { width: 4.2rem; height: 4.2rem; object-fit: contain; border-radius: 12px; background: #fff; padding: 0.3rem; flex: none; }
+.cp-body { min-width: 0; flex: 1; }
+.cp-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font: 700 1.05rem 'Rubik', 'Heebo', sans-serif; }
+.cp-when { font: 500 0.72rem 'Rubik', sans-serif; color: var(--muted); background: rgba(255, 255, 255, 0.07); border-radius: 999px; padding: 0.1rem 0.6rem; }
+.cp-when.soon { color: #1b1203; background: var(--amber); }
+.cp-desc { margin: 0.4rem 0; font-size: 0.9rem; line-height: 1.65; color: #D8D3E8; }
+.cp-code { display: inline-flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0.6rem 0.2rem 0; padding: 0.25rem 0.9rem; border-radius: 12px; border: 1px dashed var(--aqua); background: rgba(94, 234, 212, 0.08); }
+.cp-code span { font-size: 0.74rem; color: var(--muted); }
+.cp-code b { font: 700 1rem 'Rubik', sans-serif; letter-spacing: 0.08em; color: var(--aqua); direction: ltr; user-select: all; }
+.st-key-nav [data-testid="stButtonGroup"] button { padding: 0.6rem 0.4rem; font-size: 0.9rem; min-width: 5.5rem; }
+.st-key-nav [data-testid="stButtonGroup"] button * { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; text-align: center; }
+@media (max-width: 640px) { .st-key-nav [data-testid="stButtonGroup"] button { flex: 1 1 calc(50% - 0.4rem); } }

@@ -119,7 +119,32 @@ def parse_product(slug, chunk):
         "ingredients": len(records),
         "_names": [name for name, _ in entries],
         "_key": list(key_ingredients),
+        "_records": [r for r in records if (r.get("name") or "").strip()],
+        "_description": obj.get("description") or "",
     }
+
+
+KEEP_FIELDS = (
+    "name", "rating", "functionFamilies", "keyIngredientGroupId", "description",
+    "increasesPhotoSensitivity", "contraindicatedInPregnancy", "contraindicatedWhileBreastfeeding",
+)
+
+
+def write_ingredient_db(products, out_dir):
+    """מאגר רכיבים מקומי (שם באותיות קטנות -> פירוט) ורשימות רכיבים לכל מוצר, כדי להימנע מקריאות לאתר."""
+    db, lists, meta = {}, {}, {}
+    for product in products:
+        names = []
+        for record in product.get("_records", []):
+            name = record["name"].strip()
+            names.append(name)
+            db.setdefault(name.lower(), {k: record.get(k) for k in KEEP_FIELDS if record.get(k) not in (None, "")})
+        lists[product["slug"]] = names
+        meta[product["slug"]] = {"description": product.get("_description", ""), "key": product.get("_key", [])}
+    path = out_dir / "ingredients.json"
+    path.write_text(json.dumps({"generated": date.today().isoformat(), "ingredients": db, "products": lists, "meta": meta},
+                               ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"מאגר רכיבים: {len(db)} רכיבים, {len(lists)} מוצרים ({path.stat().st_size // 1024}KB)")
 
 
 def main():
@@ -138,10 +163,12 @@ def main():
         for product in products:
             entries = [(name, None) for name in product.get("_names", [])]
             product["actives"] = sorted(detect_actives_from_names(entries))
-            product.pop("_names", None)
-            product.pop("_key", None)
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
+        write_ingredient_db(products, out.parent)
+        for product in products:
+            for key in ("_names", "_key", "_records", "_description"):
+                product.pop(key, None)
         payload = {"generated": date.today().isoformat(), "count": len(products), "products": products}
         out.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         print(f"חושבו מחדש {len(products)} מוצרים ({out.stat().st_size // 1024}KB)")
@@ -174,12 +201,12 @@ def main():
 
     if args.raw:
         Path(args.raw).write_text(json.dumps(products, ensure_ascii=False), encoding="utf-8")
-    for product in products:
-        product.pop("_names", None)
-        product.pop("_key", None)
-
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    write_ingredient_db(products, out.parent)
+    for product in products:
+        for key in ("_names", "_key", "_records", "_description"):
+            product.pop(key, None)
     payload = {"generated": date.today().isoformat(), "count": len(products), "products": products}
     out.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"נשמרו {len(products)} מוצרים ב-{out} ({out.stat().st_size // 1024}KB), נכשלו {len(failed)}, {time.time() - started:.0f} שניות")
