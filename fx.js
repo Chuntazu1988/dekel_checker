@@ -200,6 +200,77 @@
         if (e.key === 'Escape') closeLightbox();
     });
 
+    /* ---------- קונפטי חגיגי ---------- */
+    var CONFETTI_COLORS = ['#FF6FB5', '#8B5CF6', '#5EEAD4', '#FBBF24', '#FFFFFF', '#F472B6', '#7DD3FC'];
+
+    function launchConfetti(host) {
+        if (reduce) return;
+        var canvas2 = makeEl('canvas', 'cel-confetti');
+        host.appendChild(canvas2);
+        var w = window.innerWidth, h = window.innerHeight;
+        var ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas2.width = w * ratio;
+        canvas2.height = h * ratio;
+        var c = canvas2.getContext('2d');
+        c.scale(ratio, ratio);
+        var pieces = [];
+
+        function spawn(x, y, vx, vy) {
+            pieces.push({
+                x: x, y: y, vx: vx, vy: vy,
+                w: 6 + Math.random() * 8, h: 4 + Math.random() * 7,
+                rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4,
+                color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+                round: Math.random() < 0.25,
+                sway: Math.random() * 6.28, born: performance.now(),
+                life: 2400 + Math.random() * 1600
+            });
+        }
+        function burst(x, y, count, minSpeed, maxSpeed, spread, baseAngle) {
+            for (var i = 0; i < count; i++) {
+                var angle = baseAngle + (Math.random() - 0.5) * spread;
+                var speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+                spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed);
+            }
+        }
+
+        var start = performance.now();
+        var fired = false;
+        (function frame(now) {
+            var t = now - start;
+            if (!fired && t > 120) {
+                fired = true;
+                burst(w * 0.5, h * 0.5, 90, 7, 18, 6.28, 0);                    // פיצוץ מהמרכז
+                burst(w * 0.06, h * 1.02, 60, 16, 28, 0.9, -1.15);             // תותח משמאל
+                burst(w * 0.94, h * 1.02, 60, 16, 28, 0.9, -Math.PI + 1.15);   // תותח מימין
+            }
+            if (t > 400 && t < 2900) {                                           // גשם קונפטי מלמעלה
+                for (var k = 0; k < 3; k++) spawn(Math.random() * w, -12, (Math.random() - 0.5) * 1.5, 2 + Math.random() * 3);
+            }
+            c.clearRect(0, 0, w, h);
+            for (var i = pieces.length - 1; i >= 0; i--) {
+                var q = pieces[i];
+                var age = now - q.born;
+                if (age > q.life || q.y > h + 40) { pieces.splice(i, 1); continue; }
+                q.vy += 0.22;
+                q.vx *= 0.992;
+                q.x += q.vx + Math.sin(age / 180 + q.sway) * 0.7;
+                q.y += q.vy;
+                q.rot += q.vr;
+                c.save();
+                c.globalAlpha = Math.max(0, Math.min(1, (q.life - age) / 500));
+                c.translate(q.x, q.y);
+                c.rotate(q.rot);
+                c.fillStyle = q.color;
+                if (q.round) { c.beginPath(); c.arc(0, 0, q.w / 2.4, 0, 6.28); c.fill(); }
+                else { c.fillRect(-q.w / 2, -q.h / 2, q.w, q.h); }
+                c.restore();
+            }
+            if (t < 5200 && (pieces.length || t < 3000) && canvas2.isConnected) requestAnimationFrame(frame);
+            else canvas2.remove();
+        })(start);
+    }
+
     /* ---------- חגיגת Dekel Verified על כל המסך ---------- */
     var celebrated = {};
     var SPARKS = ['✨', '⭐', '💫'];
@@ -224,6 +295,7 @@
         }
         overlay.appendChild(makeEl('div', 'cel-logo'));
         doc.body.appendChild(overlay);
+        launchConfetti(overlay);
 
         requestAnimationFrame(function () {
             requestAnimationFrame(function () { overlay.classList.add('in'); });

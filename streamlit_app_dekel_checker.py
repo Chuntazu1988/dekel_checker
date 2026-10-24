@@ -525,13 +525,21 @@ def ocr_lines(image_bytes):
     return lines
 
 
-def build_queries(lines):
+GENERIC_WORDS = {"acid", "cream", "serum", "toner", "with", "for", "body", "face", "gel", "oil", "lotion", "cleanser", "water", "mask"}
+
+
+def _clean_lines(lines, min_confidence):
     cleaned = []
     for text, confidence, height, y in lines:
         text = re.sub(r"[^A-Za-z0-9%&+.\- ]", " ", text)
         text = re.sub(r"\s+", " ", text).strip(" .-:")
-        if confidence >= 0.45 and len(text) >= 3 and re.search(r"[A-Za-z]{3}", text):
+        if confidence >= min_confidence and len(text) >= 3 and re.search(r"[A-Za-z]{3}", text):
             cleaned.append((text, height, y))
+    return cleaned
+
+
+def build_queries(lines):
+    cleaned = _clean_lines(lines, 0.45)
     if not cleaned:
         return []
 
@@ -554,20 +562,49 @@ def build_queries(lines):
     return unique[:6]
 
 
-def rank_products(products, lines):
+def build_extra_queries(lines, used):
+    """שאילתות נוספות כשההתאמות הראשונות לא נכונות: שורות פחות בולטות ומילים בודדות."""
+    taken = {query.lower() for query in used}
+    cleaned = sorted(_clean_lines(lines, 0.3), key=lambda item: -item[1])
+
+    candidates = [text for text, _, _ in cleaned]
+    for text, _, _ in cleaned:
+        for word in re.findall(r"[A-Za-z]{4,}", text):
+            if word.lower() not in GENERIC_WORDS:
+                candidates.append(word)
+
+    extra = []
+    for query in candidates:
+        if len(query) >= 4 and query.lower() not in taken:
+            taken.add(query.lower())
+            extra.append(query)
+    return extra[:6]
+
+
+def rank_products(products, lines, min_matched=2, exclude=()):
     seen_tokens = set()
     for text, confidence, _, _ in lines:
-        if confidence >= 0.4:
+        if confidence >= 0.3:
             seen_tokens.update(_tokens(text))
 
+    excluded = set(exclude)
     scored = []
     for product in products:
+        if product.get("slug") in excluded:
+            continue
         english_company = product["company"].split("|")[-1]
         candidate = set(_tokens(f"{product['name']} {english_company} {product['name2']}"))
         if not candidate:
             continue
-        matched = len(candidate & seen_tokens)
-        if matched >= 2 or (matched == 1 and len(candidate) <= 2):
+        matched_tokens = candidate & seen_tokens
+        matched = len(matched_tokens)
+        if min_matched <= 1:
+            # בהתאמה מתונה מקבלים גם מילה אחת, אבל לא מילה כללית כמו acid או cream
+            specific = [t for t in matched_tokens if len(t) >= 4 and t not in GENERIC_WORDS]
+            ok = matched >= 2 or bool(specific)
+        else:
+            ok = matched >= 2 or (matched == 1 and len(candidate) <= 2)
+        if ok:
             scored.append((matched - 0.25 * (len(candidate) - matched), product))
 
     scored.sort(key=lambda item: -item[0])
@@ -864,6 +901,11 @@ def reset_all():
     st.session_state.product_meta = None
     st.session_state.celebrate_id = None
     st.session_state.product_hits = None
+    st.session_state.product_lines = []
+    st.session_state.product_pool = {}
+    st.session_state.product_rejected = []
+    st.session_state.product_queries_used = []
+    st.session_state.product_obf_tried = False
     st.session_state.uploader_key += 1
     st.session_state.manual_key += 1
 
@@ -900,6 +942,16 @@ if "product_meta" not in st.session_state:
     st.session_state.product_meta = None
 if "celebrate_id" not in st.session_state:
     st.session_state.celebrate_id = None
+if "product_lines" not in st.session_state:
+    st.session_state.product_lines = []
+if "product_pool" not in st.session_state:
+    st.session_state.product_pool = {}
+if "product_rejected" not in st.session_state:
+    st.session_state.product_rejected = []
+if "product_queries_used" not in st.session_state:
+    st.session_state.product_queries_used = []
+if "product_obf_tried" not in st.session_state:
+    st.session_state.product_obf_tried = False
 if "product_hits" not in st.session_state:
     st.session_state.product_hits = None
 
@@ -1209,12 +1261,24 @@ def product_card_html(product):
     )
 
 
+def _remember_pool(products):
+    pool = st.session_state.product_pool
+    for product in products:
+        if product.get("slug"):
+            pool[product["slug"]] = product
+
+
 def identify_product(image_bytes):
     st.session_state.product_candidates = []
     st.session_state.product_source = None
+    st.session_state.product_pool = {}
+    st.session_state.product_rejected = []
+    st.session_state.product_queries_used = []
+    st.session_state.product_obf_tried = False
 
     with st.spinner("קוראת את הטקסט מהתמונה..."):
         lines = ocr_lines(image_bytes)
+    st.session_state.product_lines = lines
     queries = build_queries(lines)
     if not queries:
         st.session_state.product_status = "no-text"
@@ -1226,17 +1290,81 @@ def identify_product(image_bytes):
     except Exception:
         st.session_state.product_status = "error"
         return
+    st.session_state.product_queries_used = list(queries)
+    _remember_pool(found)
 
     candidates = rank_products(found, lines)
     source = "dekel"
     if not candidates:
         with st.spinner("לא נמצא בדקל, מחפשת במאגר פתוח..."):
             candidates = search_open_beauty_facts(" ".join(queries[0].split()[:8]))
+        st.session_state.product_obf_tried = True
         source = "obf"
 
     st.session_state.product_candidates = candidates
     st.session_state.product_source = source
     st.session_state.product_status = "ok" if candidates else "none"
+
+
+def continue_search():
+    """המשתמשת סימנה שאף התאמה לא נכונה: ממשיכים לחפש, בלי להציג שוב את מה שנדחה."""
+    if st.session_state.product_source == "dekel":
+        rejected = set(st.session_state.product_rejected)
+        rejected.update(c["slug"] for c in st.session_state.product_candidates if c.get("slug"))
+        st.session_state.product_rejected = list(rejected)
+    else:
+        rejected = set(st.session_state.product_rejected)
+
+    lines = st.session_state.product_lines
+    candidates, source = [], "dekel"
+
+    if st.session_state.product_source == "dekel":
+        # 1) דירוג מתון יותר של מה שכבר נמצא
+        candidates = rank_products(list(st.session_state.product_pool.values()), lines, min_matched=1, exclude=rejected)
+
+        # 2) חיפוש בקטלוג עם שאילתות חדשות מהטקסט שבתמונה
+        if not candidates:
+            extra = build_extra_queries(lines, st.session_state.product_queries_used)
+            if extra:
+                try:
+                    with st.spinner("ממשיכה לחפש בקטלוג של דקל..."):
+                        found = find_products(extra)
+                    st.session_state.product_queries_used += extra
+                    _remember_pool(found)
+                    candidates = rank_products(
+                        list(st.session_state.product_pool.values()), lines, min_matched=1, exclude=rejected
+                    )
+                except Exception:
+                    pass
+
+        # 3) מאגר פתוח, פעם אחת
+        if not candidates and not st.session_state.product_obf_tried:
+            queries = build_queries(lines)
+            if queries:
+                with st.spinner("לא נמצא בדקל, מחפשת במאגר פתוח..."):
+                    candidates = search_open_beauty_facts(" ".join(queries[0].split()[:8]))
+                source = "obf"
+            st.session_state.product_obf_tried = True
+
+    st.session_state.product_candidates = candidates
+    st.session_state.product_source = source if candidates else st.session_state.product_source
+    st.session_state.product_status = "ok" if candidates else "exhausted"
+    st.rerun()
+
+
+def search_by_typed_name(term):
+    try:
+        with st.spinner("מחפשת בקטלוג של דקל..."):
+            found = search_products(term)
+    except Exception:
+        st.session_state.product_status = "error"
+        return
+    rejected = set(st.session_state.product_rejected)
+    candidates = [p for p in found if p.get("slug") not in rejected][:5]
+    st.session_state.product_candidates = candidates
+    st.session_state.product_source = "dekel"
+    st.session_state.product_status = "ok" if candidates else "typed-none"
+    st.rerun()
 
 
 def choose_dekel_product(product):
@@ -1273,40 +1401,58 @@ def choose_obf_product(candidate):
 
 def render_candidates():
     status = st.session_state.product_status
+    if status is None and not st.session_state.product_candidates:
+        return
+
     if status == "no-text":
         st.warning("לא הצלחתי לקרוא טקסט בתמונה. נסי לצלם שוב מקרוב ובאור טוב, כשהשם והמותג נראים בבירור.")
     elif status == "error":
         st.error("לא הצלחתי לחפש את המוצר כרגע. נסי שוב בעוד רגע.")
     elif status == "none":
-        st.info(
-            "לא מצאתי את המוצר. אפשר לחפש לפי שם בכרטיס 'האם המוצר מאושר דקל?' למטה, "
-            "או לצלם את רשימת הרכיבים שעל האריזה."
-        )
+        st.info("לא מצאתי התאמה בקטלוג. אפשר לכתוב את שם המוצר או המותג כאן למטה.")
+    elif status == "exhausted":
+        st.info("לא נמצאו עוד התאמות מהתמונה. כתבי כאן את שם המוצר או המותג, או צלמי שוב מקרוב.")
+    elif status == "typed-none":
+        st.info("לא נמצא מוצר בשם הזה בקטלוג של דקל. נסי לכתוב את המותג או חלק משם המוצר באנגלית.")
 
     candidates = st.session_state.product_candidates
-    if not candidates:
-        return
-
-    if st.session_state.product_source == "dekel":
-        st.caption("זה המוצר שלך? בחרי את ההתאמה הנכונה")
-        for index, product in enumerate(candidates):
-            st.markdown(product_card_html(product), unsafe_allow_html=True)
-            if st.button("✔ זה המוצר שלי", key=f"pick_{index}"):
-                choose_dekel_product(product)
-    else:
-        st.warning(
-            "המוצר לא נמצא בקטלוג של דקל. אלה התאמות ממאגר פתוח (Open Beauty Facts), "
-            "וייתכן שההרכב בהן שונה מהאריזה שלך."
-        )
-        for index, candidate in enumerate(candidates):
-            label = f"{candidate['brand']} · {candidate['name']}".strip(" ·")
-            st.markdown(
-                f'<div class="pcard"><div class="pbody"><div class="pname">{html.escape(label)}</div>'
-                f'<p>{html.escape(candidate["ingredients"][:160])}…</p></div></div>',
-                unsafe_allow_html=True,
+    if candidates:
+        if st.session_state.product_source == "dekel":
+            st.caption("זה המוצר שלך? בחרי את ההתאמה הנכונה")
+            for index, product in enumerate(candidates):
+                st.markdown(product_card_html(product), unsafe_allow_html=True)
+                if st.button("✔ זה המוצר שלי", key=f"pick_{index}"):
+                    choose_dekel_product(product)
+        else:
+            st.warning(
+                "המוצר לא נמצא בקטלוג של דקל. אלה התאמות ממאגר פתוח (Open Beauty Facts), "
+                "וייתכן שההרכב בהן שונה מהאריזה שלך."
             )
-            if st.button("✔ זה המוצר שלי", key=f"pick_obf_{index}"):
-                choose_obf_product(candidate)
+            for index, candidate in enumerate(candidates):
+                label = f"{candidate['brand']} · {candidate['name']}".strip(" ·")
+                st.markdown(
+                    f'<div class="pcard"><div class="pbody"><div class="pname">{html.escape(label)}</div>'
+                    f'<p>{html.escape(candidate["ingredients"][:160])}…</p></div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("✔ זה המוצר שלי", key=f"pick_obf_{index}"):
+                    choose_obf_product(candidate)
+
+        if st.button("✖ זה לא המוצר שלי, המשיכי לחפש", key="not_mine"):
+            continue_search()
+
+    st.markdown('<div class="typed-sep">לא מוצאת? אפשר לכתוב את שם המוצר או המותג:</div>', unsafe_allow_html=True)
+    typed = st.text_input(
+        "שם המוצר",
+        label_visibility="collapsed",
+        placeholder="The Ordinary Niacinamide, CeraVe...",
+        key=f"typed_product_{st.session_state.manual_key}",
+    )
+    if st.button("🔎 חפשי לפי שם", key="typed_search"):
+        if len(typed.strip()) < 2:
+            st.warning("נא להזין שם מוצר או מותג")
+        else:
+            search_by_typed_name(typed.strip())
 
 
 def selected_product_banner():
