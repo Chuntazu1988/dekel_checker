@@ -17,6 +17,15 @@ from playwright.sync_api import sync_playwright
 from PIL import Image, ImageOps, ImageFilter
 import easyocr
 
+from compat import (
+    ACTIVE_NAMES,
+    EXFOLIANTS,
+    active_label,
+    compare_actives,
+    detect_actives_from_names,
+    mixing_advice,
+)
+
 st.set_page_config(page_title="Dekel Checker", layout="centered")
 
 EMOJI_CLASS = {"🟢": "good", "🟡": "caution", "🔴": "bad"}
@@ -688,68 +697,162 @@ def usage_groups_html(names, results):
     return '<div class="ug-grid">' + "".join(blocks) + "</div>"
 
 
-# ---- פעילים שחשוב לדעת עליהם ----
-ACTIVE_PATTERNS = {
-    "retinoid": re.compile(r"\b(retinol|retinal|retinaldehyde|retinyl|tretinoin|adapalene|tazarotene|retinoate)\b", re.I),
-    "aha": re.compile(r"\b(glycolic acid|lactic acid|mandelic acid)\b", re.I),
-    "bha": re.compile(r"\b(salicylic acid|betaine salicylate)\b", re.I),
-    "pha": re.compile(r"\b(gluconolactone|lactobionic acid)\b", re.I),
-    "vitc": re.compile(r"^(l-)?ascorbic acid$", re.I),
-    "benzoyl": re.compile(r"benzoyl peroxide", re.I),
-    "copper": re.compile(r"copper (tri)?peptide|copper tripeptide|copper peptide", re.I),
-}
-ACTIVE_NAMES = {
-    "retinoid": "רטינואידים",
-    "aha": "חומצות AHA",
-    "bha": "חומצת BHA",
-    "pha": "חומצות PHA",
-    "vitc": "ויטמין C (חומצה אסקורבית)",
-    "benzoyl": "בנזואיל פרוקסיד",
-    "copper": "פפטידים של נחושת",
-}
-EXFOLIANTS = {"aha", "bha", "pha"}
+# ---- פעילים שחשוב לדעת עליהם (הלוגיקה והכללים במודול compat) ----
 def detect_actives(names, results, key_ingredients=(), top=15):
-    found = set()
-    key_lower = {k.lower() for k in key_ingredients}
-    for index, name in enumerate(names):
-        if index >= top and name.lower() not in key_lower:
-            continue
-        for code, pattern in ACTIVE_PATTERNS.items():
-            if pattern.search(name):
-                found.add(code)
-        group_id = results[name].get("group_id")
-        if group_id == 3:
-            found.add("aha")
-        elif group_id == 4:
-            found.add("bha")
-    return found
+    return detect_actives_from_names(
+        ((name, results[name].get("group_id")) for name in names), key_ingredients, top
+    )
 
 
-# (פעילים בצד אחד, פעילים בצד שני, הסבר, האם הכלל חל בשני הכיוונים)
-MIX_RULES = [
-    ({"retinoid"}, {"aha", "bha", "pha"}, "השילוב עלול להעלות סיכון לגירוי ויובש. כדאי להפריד בין ערבים.", True),
-    ({"retinoid"}, {"benzoyl"}, "השילוב עלול לגרות. כדאי להפריד בין בוקר לערב או בין ימים.", True),
-    ({"retinoid"}, {"vitc"}, "כדאי להפריד: ויטמין C בבוקר ורטינואיד בערב.", True),
-    ({"aha", "bha", "pha"}, {"vitc"}, "שניהם חומציים וממריצים גירוי. כדאי להפריד בין בוקר לערב.", True),
-    ({"copper"}, {"aha", "bha", "pha", "vitc"}, "חומצות עלולות לפגוע בפעילות הפפטידים. כדאי להפריד.", False),
+# ---- התאמה לשאר המוצרים בקטלוג של דקל ----
+CATALOG_INDEX_PATH = Path(__file__).parent / "data" / "catalog_index.json"
+OPPOSITE_TIMES = {("MORNING", "EVENING"), ("EVENING", "MORNING")}
+# סוגי המוצרים של דקל הם צירופים ארוכים; מאחדים אותם לקטגוריות קצרות וברורות
+CATEGORY_RULES = [
+    ("שיער", ("שיער",)),
+    ("קרם הגנה", ("קרם הגנה",)),
+    ("סרום", ("סרום",)),
+    ("מסיכות", ("מסיכת פנים",)),
+    ("אזור העיניים", ("עיניים", "ריסים")),
+    ("ניקוי פנים", ("סבון פנים", "מיסלריים", "באלם ניקוי")),
+    ("טונר ואסנס", ("טונר", "מי פנים", "אסנס")),
+    ("קרם פנים", ("קרם פנים", "קרם CC")),
+    ("טיפול נקודתי", ("נקודתי", "SOS")),
+    ("שפתיים", ("שפתון",)),
+    ("איפור", ("איפור",)),
+    ("גוף", ("גוף", "ידיים", "רגליים", "מתיחה", "דאודורנט")),
 ]
+FACE_CATEGORIES = ["סרום", "קרם פנים", "ניקוי פנים", "טונר ואסנס", "קרם הגנה", "מסיכות", "אזור העיניים", "טיפול נקודתי"]
 
 
-def _active_label(codes):
-    return " / ".join(ACTIVE_NAMES[code] for code in sorted(codes))
+def categories_of(entry):
+    found = []
+    for raw in entry.get("types") or []:
+        for token in raw.split(","):
+            for name, words in CATEGORY_RULES:
+                if any(word in token for word in words):
+                    if name not in found:
+                        found.append(name)
+                    break
+    return found or ["אחר"]
 
 
-def mixing_advice(actives):
-    advice = []
-    for side_a, side_b, reason, both_ways in MIX_RULES:
-        mine, other = actives & side_a, actives & side_b
-        if mine and not other:
-            advice.append((f"לא לשלב עם: {_active_label(side_b)}", f"במוצר יש {_active_label(mine)}. {reason}"))
-        elif both_ways and other and not mine:
-            advice.append((f"לא לשלב עם: {_active_label(side_a)}", f"במוצר יש {_active_label(other)}. {reason}"))
-    if actives & EXFOLIANTS:
-        advice.append(("לא לשלב עם: עוד פילינג או קרצוף", "כדאי לא להפעיל כמה סוגי פילינג באותו יום."))
-    return advice
+@st.cache_data(show_spinner=False)
+def load_catalog_index():
+    try:
+        return json.loads(CATALOG_INDEX_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def catalog_compatibility(slug, actives, time_code):
+    index = load_catalog_index()
+    if not index:
+        return None
+
+    groups = {"ok": [], "separate": [], "avoid": []}
+    for entry in index["products"]:
+        if entry["slug"] == slug or not entry.get("verified"):
+            continue
+        conflicts = compare_actives(actives, set(entry.get("actives", [])))
+        if not conflicts:
+            groups["ok"].append((entry, []))
+        elif (time_code, entry.get("time")) in OPPOSITE_TIMES:
+            groups["separate"].append((entry, conflicts))
+        else:
+            groups["avoid"].append((entry, conflicts))
+    return groups, index.get("generated", "")
+
+
+def _shown_category(entry, chosen):
+    for category in categories_of(entry):
+        if category in chosen:
+            return category
+    return None
+
+
+def compat_group_html(rows, with_reasons, chosen):
+    if not rows:
+        return '<div class="cx-empty">אין מוצרים בקבוצה הזאת.</div>'
+
+    by_type = {}
+    for entry, conflicts in rows:
+        by_type.setdefault(_shown_category(entry, chosen), []).append((entry, conflicts))
+
+    blocks = []
+    for type_name, items in sorted(by_type.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        chips = []
+        for entry, _conflicts in sorted(items, key=lambda item: item[0]["name"].lower()):
+            url = "https://thedekel.co.il/product-verified/?slug=" + quote(entry["slug"])
+            brand = entry["company"].split("|")[-1].strip()
+            chips.append(
+                f'<a class="cx-chip" href="{html.escape(url)}" target="_blank" rel="noopener">'
+                f'<b>{html.escape(entry["name"])}</b><small>{html.escape(brand)}</small></a>'
+            )
+        reasons = ""
+        if with_reasons:
+            seen, lines = set(), []
+            for _entry, conflicts in items:
+                for title, reason in conflicts:
+                    if title not in seen:
+                        seen.add(title)
+                        lines.append(f"<li><b>{html.escape(title)}:</b> {html.escape(reason)}</li>")
+            reasons = f'<ul class="cx-reasons">{"".join(lines)}</ul>'
+        blocks.append(
+            f'<div class="cx-group"><div class="cx-type">{html.escape(type_name)}<em>{len(items)}</em></div>'
+            f'<div class="cx-chips">{"".join(chips)}</div>{reasons}</div>'
+        )
+    return "".join(blocks)
+
+
+def show_compatibility(names, results, product, meta):
+    actives = detect_actives(names, results, (meta or {}).get("key_ingredients", ()))
+    computed = catalog_compatibility(product["slug"], actives, (meta or {}).get("time"))
+    if computed is None:
+        return
+    groups, generated = computed
+
+    section("🤝", "שילובים עם מוצרים אחרים בקטלוג", "אילו מוצרים של דקל מתאימים לשימוש יחד עם המוצר הזה")
+    if actives:
+        st.caption(f"פעילים בולטים במוצר: {active_label(actives)}")
+    else:
+        st.caption("לא זוהו במוצר פעילים חזקים, ולכן רוב המוצרים מתאימים לשימוש יחד איתו.")
+
+    counts = {}
+    for rows in groups.values():
+        for entry, _conflicts in rows:
+            for category in categories_of(entry):
+                counts[category] = counts.get(category, 0) + 1
+    options = [name for name, _words in CATEGORY_RULES if name in counts] + (["אחר"] if "אחר" in counts else [])
+    chosen = st.multiselect(
+        "סוגי מוצרים להצגה",
+        options,
+        default=[name for name in FACE_CATEGORIES if name in options],
+        key="compat_types",
+        help="ברירת המחדל: מוצרי פנים. אפשר להוסיף גם שיער, גוף ועוד.",
+    )
+    groups = {
+        bucket: [(entry, conflicts) for entry, conflicts in rows if _shown_category(entry, chosen)]
+        for bucket, rows in groups.items()
+    }
+
+    tab_ok, tab_separate, tab_avoid = st.tabs([
+        f"✅ מתאימים ({len(groups['ok'])})",
+        f"🕒 בהפרדה ({len(groups['separate'])})",
+        f"⛔ לא לשלב ({len(groups['avoid'])})",
+    ])
+    with tab_ok:
+        st.markdown(compat_group_html(groups["ok"], False, chosen), unsafe_allow_html=True)
+    with tab_separate:
+        st.caption("שילוב בעייתי באותה שגרה, אבל אפשר להשתמש בשניהם אם אחד בבוקר והשני בערב.")
+        st.markdown(compat_group_html(groups["separate"], True, chosen), unsafe_allow_html=True)
+    with tab_avoid:
+        st.markdown(compat_group_html(groups["avoid"], True, chosen), unsafe_allow_html=True)
+
+    st.caption(
+        f"ההשוואה כוללת רק מוצרים מאושרי דקל (נכון ל-{generated}), לפי פעילים בולטים וכללי שילוב כלליים. "
+        "היא להכוונה בלבד ואינה ייעוץ רפואי."
+    )
 
 
 TIME_LABELS = {
@@ -1197,6 +1300,10 @@ def show_summary(ingredients):
         guide_html(checked, st.session_state.results, st.session_state.product_meta),
         unsafe_allow_html=True,
     )
+
+    product = st.session_state.selected_product
+    if product and product.get("slug") and product.get("source") != "obf":
+        show_compatibility(checked, st.session_state.results, product, st.session_state.product_meta)
 
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
