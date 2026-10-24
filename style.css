@@ -426,6 +426,57 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 }
 .dv-seal i { font-style: normal; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: #07241F; color: #5EEAD4; font-size: 0.75rem; }
 .dv-seal::after { content: ""; position: absolute; top: 0; bottom: 0; width: 35%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); animation: shine 3.6s ease-in-out infinite; }
+/* ---------- קבוצות לפי שימוש ---------- */
+.ug-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin: 0.3rem 0 1.1rem; }
+.ug {
+    border-radius: 18px; padding: 0.85rem 1rem 0.9rem; border: 1px solid var(--edge);
+    background: rgba(255, 255, 255, 0.045); animation: fadeUp 0.6s ease both;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.ug:hover { border-color: rgba(139, 92, 246, 0.6); transform: translateY(-3px); box-shadow: 0 14px 30px rgba(139, 92, 246, 0.16); }
+.ug-head { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.6rem; }
+.ug-ico { font-size: 1.15rem; }
+.ug-head b { font: 700 0.98rem 'Rubik', 'Heebo', sans-serif; }
+.ug-head em { margin-inline-start: auto; font: 600 0.78rem 'Rubik', sans-serif; font-style: normal; color: var(--muted); background: rgba(255, 255, 255, 0.07); border-radius: 999px; padding: 0.05rem 0.6rem; }
+.ug-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; min-width: 0; }
+.ugchip {
+    direction: ltr; unicode-bidi: plaintext; font-size: 0.8rem; padding: 0.12rem 0.65rem; border-radius: 999px;
+    max-width: 100%; overflow-wrap: anywhere;
+    border: 1px solid var(--cb); background: var(--cg); color: var(--cc);
+}
+.ugchip.good    { --cc: var(--aqua);  --cb: rgba(94, 234, 212, 0.35);  --cg: rgba(94, 234, 212, 0.09); }
+.ugchip.caution { --cc: var(--amber); --cb: rgba(251, 191, 36, 0.4);   --cg: rgba(251, 191, 36, 0.10); }
+.ugchip.bad     { --cc: var(--rose);  --cb: rgba(251, 113, 133, 0.45); --cg: rgba(251, 113, 133, 0.12); }
+.ugchip.other   { --cc: #B9A5FA;      --cb: rgba(167, 139, 250, 0.35); --cg: rgba(167, 139, 250, 0.10); }
+
+/* ---------- מדריך שימוש ---------- */
+.guide { margin: 0.3rem 0 1.1rem; animation: fadeUp 0.6s ease both; }
+.g-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.g-card {
+    display: flex; gap: 0.9rem; align-items: flex-start;
+    border-radius: 20px; padding: 1rem 1.1rem; border: 1px solid var(--edge);
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.10), rgba(94, 234, 212, 0.05));
+}
+.g-ico { flex: none; width: 3rem; height: 3rem; display: grid; place-items: center; font-size: 1.35rem; border-radius: 16px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--edge); }
+.g-kicker { font: 600 0.72rem 'Rubik', sans-serif; letter-spacing: 0.14em; color: var(--muted); }
+.g-title { font: 700 1.1rem/1.35 'Rubik', 'Heebo', sans-serif; margin: 0.1rem 0; }
+.g-title.g-small { font-size: 0.98rem; font-weight: 500; font-family: 'Heebo', sans-serif; }
+.g-instr { margin-top: 0.8rem; border-radius: 20px; padding: 1rem 1.2rem; border: 1px solid var(--edge); background: rgba(255, 255, 255, 0.04); }
+.g-text { line-height: 1.6; margin-top: 0.15rem; }
+.g-list { margin: 0.3rem 0 0; padding-inline-start: 1.1rem; line-height: 1.65; font-size: 0.92rem; }
+.g-list li { margin-bottom: 0.25rem; }
+.g-src { font-size: 0.74rem; color: var(--aqua); margin-top: 0.3rem; opacity: 0.85; }
+.g-actives { margin-top: 0.8rem; color: var(--muted); font-size: 0.88rem; }
+.g-actives span { display: inline-block; margin: 0 0.3rem 0.2rem 0; padding: 0.1rem 0.7rem; border-radius: 999px; color: var(--ink); background: rgba(139, 92, 246, 0.18); border: 1px solid rgba(139, 92, 246, 0.4); }
+.g-sep { margin: 1rem 0 0.5rem; }
+.g-mix { display: flex; gap: 0.75rem; align-items: flex-start; border-radius: 16px; padding: 0.75rem 0.95rem; margin-bottom: 0.55rem; background: rgba(251, 191, 36, 0.07); border: 1px solid rgba(251, 191, 36, 0.28); }
+.g-mix.ok { background: rgba(94, 234, 212, 0.07); border-color: rgba(94, 234, 212, 0.3); }
+.g-mix > span { font-size: 1.1rem; }
+.g-mix b { font-family: 'Rubik', 'Heebo', sans-serif; }
+.g-mix p { margin: 0.15rem 0 0; color: #D8D3E8; font-size: 0.92rem; line-height: 1.6; }
+.g-note { margin-top: 0.8rem; color: var(--muted); font-size: 0.78rem; line-height: 1.6; }
+@media (max-width: 640px) { .ug-grid, .g-grid { grid-template-columns: minmax(0, 1fr); } }
+
 /* הדמות של דקל שמופיעה ליד מוצר מאושר */
 @keyframes mascotIn { 0% { opacity: 0; transform: scale(0.3) rotate(-14deg); } 70% { transform: scale(1.08) rotate(3deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.7) rotate(0); } 50% { opacity: 1; transform: scale(1.15) rotate(15deg); } }

@@ -186,10 +186,11 @@ BATCH_JS = """async (names) => {
 }"""
 
 
-def _result(emoji, rating, text, role="", description="", notes=(), flags=()):
+def _result(emoji, rating, text, role="", description="", notes=(), flags=(), roles=(), group_id=None):
     return {
         "emoji": emoji, "rating": rating, "text": text, "role": role,
         "description": description, "notes": list(notes), "flags": list(flags),
+        "roles": list(roles), "group_id": group_id,
     }
 
 
@@ -247,6 +248,8 @@ def _to_result(item):
     rating = (detail.get("rating") or "").strip()
     rating = RATING_ALIASES.get(rating, rating)
     roles = (detail.get("functionFamilies") or "").strip()
+    role_list = [part.strip() for part in roles.split(",") if part.strip()]
+    group_id = detail.get("keyIngredientGroupId")
     description = _plain_text(detail.get("description"))
 
     notes = []
@@ -267,11 +270,11 @@ def _to_result(item):
     if not rating:
         return _result(
             "⚪", "אין דירוג", f"⚪ עדיין אין דירוג באתר דקל עבור \"{name}\"\n\n{body}",
-            roles, description, notes, flags,
+            roles, description, notes, flags, role_list, group_id,
         )
 
     emoji = RATING_COLORS.get(rating, "⚪")
-    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles, description, notes, flags)
+    return _result(emoji, rating, f"{emoji} {rating}\n\n{body}", roles, description, notes, flags, role_list, group_id)
 
 
 @st.cache_resource
@@ -459,12 +462,39 @@ def _extract_json_array(page_html, key):
     return None
 
 
+def _extract_product_object(page_html):
+    marker = page_html.find('"ingredientsInTheList"')
+    start = page_html.rfind('{"id"', 0, marker) if marker >= 0 else -1
+    if start < 0:
+        return {}
+    depth = 0
+    for position in range(start, len(page_html)):
+        char = page_html[position]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(page_html[start:position + 1])
+                except ValueError:
+                    return {}
+    return {}
+
+
 def load_product_ingredients(slug):
-    """מביאה את רשימת הרכיבים המלאה, כולל הדירוגים, מעמוד המוצר של דקל."""
+    """מביאה את רשימת הרכיבים המלאה, הדירוגים והוראות השימוש מעמוד המוצר של דקל."""
     page_html = _with_logged_in_page(lambda page: page.evaluate(PRODUCT_PAGE_JS, slug))
     records = _extract_json_array(page_html, "ingredientsInTheList")
     if not records:
         raise RuntimeError("no-ingredients")
+
+    product = _extract_product_object(page_html)
+    meta = {
+        "time": product.get("idealTimeOfUse"),
+        "description": _plain_text(product.get("description")),
+        "key_ingredients": product.get("keyIngredients") or [],
+    }
 
     names, results = [], {}
     for record in records:
@@ -472,7 +502,7 @@ def load_product_ingredients(slug):
         if name and name not in results:
             names.append(name)
             results[name] = _to_result({"name": name, "detail": record})
-    return names, results
+    return names, results, meta
 
 
 def _tokens(text):
@@ -563,6 +593,233 @@ def search_open_beauty_facts(query):
     return found[:4]
 
 
+# ======================
+# קבוצות לפי שימוש + מדריך שימוש
+# ======================
+
+# סדר הקבוצות הוא גם סדר העדיפות: רכיב נכנס לקבוצה הראשונה שמתאימה לאחד מהתפקידים שלו
+USAGE_GROUPS = [
+    ("exfoliate", "✨", "פילינג והתחדשות", {"מקלף", "שוחק"}),
+    ("brighten", "🌟", "הבהרה", {"מבהיר"}),
+    ("protect", "🛡️", "הגנה ונוגדי חמצון", {"אנטיאוקסידנט (נוגד חמצון)", "מסנן קרינת UV"}),
+    ("calm", "🌿", "הרגעה", {"מרגיע", "נוגד דלקת"}),
+    ("acne", "🧫", "אנטי-בקטריאלי", {"אנטי בקטריאלי"}),
+    ("hydrate", "💧", "לחות והזנה", {"מלחח", "מזין", "משפר מצב עור", "רכיב טבעי בעור", "מרכך"}),
+    ("boost", "🚀", "שיפור ספיגה ופעילות", {"משפר / מגביר חדירה", "רכיב משפר תפקוד | מחולל תהליכים"}),
+    ("clean", "🧼", "ניקוי", {"חומר ניקוי פעיל שטח"}),
+    ("base", "🧪", "בסיס ומרקם", {"ממס", "מתחלב", "מווסת צמיגות", "מייצב", "מווסת חומציות", "מכווץ", "סופג"}),
+    ("preserve", "🧴", "שימור", {"חומר משמר", "אנטי מיקרוביאלי", "מפחית מתכות"}),
+    ("scent", "🌸", "ריח וצבע", {"מבשם", "צבען", "דאודורנט"}),
+]
+OTHER_GROUP = ("other", "🧩", "אחר", set())
+
+
+def group_ingredients(names, results):
+    groups = {code: [] for code, *_ in USAGE_GROUPS}
+    groups["other"] = []
+    for name in names:
+        roles = set(results[name].get("roles", []))
+        for code, _icon, _title, group_roles in USAGE_GROUPS:
+            if roles & group_roles:
+                groups[code].append(name)
+                break
+        else:
+            groups["other"].append(name)
+    return groups
+
+
+def usage_groups_html(names, results):
+    groups = group_ingredients(names, results)
+    blocks = []
+    for code, icon, title, _roles in USAGE_GROUPS + [OTHER_GROUP]:
+        members = groups[code]
+        if not members:
+            continue
+        chips = "".join(
+            f'<span class="ugchip {EMOJI_CLASS.get(results[n]["emoji"], "other")}">{html.escape(n)}</span>'
+            for n in members
+        )
+        blocks.append(
+            f'<div class="ug"><div class="ug-head"><span class="ug-ico">{icon}</span>'
+            f'<b>{html.escape(title)}</b><em>{len(members)}</em></div><div class="ug-chips">{chips}</div></div>'
+        )
+    return '<div class="ug-grid">' + "".join(blocks) + "</div>"
+
+
+# ---- פעילים שחשוב לדעת עליהם ----
+ACTIVE_PATTERNS = {
+    "retinoid": re.compile(r"\b(retinol|retinal|retinaldehyde|retinyl|tretinoin|adapalene|tazarotene|retinoate)\b", re.I),
+    "aha": re.compile(r"\b(glycolic acid|lactic acid|mandelic acid)\b", re.I),
+    "bha": re.compile(r"\b(salicylic acid|betaine salicylate)\b", re.I),
+    "pha": re.compile(r"\b(gluconolactone|lactobionic acid)\b", re.I),
+    "vitc": re.compile(r"^(l-)?ascorbic acid$", re.I),
+    "benzoyl": re.compile(r"benzoyl peroxide", re.I),
+    "copper": re.compile(r"copper (tri)?peptide|copper tripeptide|copper peptide", re.I),
+}
+ACTIVE_NAMES = {
+    "retinoid": "רטינואידים",
+    "aha": "חומצות AHA",
+    "bha": "חומצת BHA",
+    "pha": "חומצות PHA",
+    "vitc": "ויטמין C (חומצה אסקורבית)",
+    "benzoyl": "בנזואיל פרוקסיד",
+    "copper": "פפטידים של נחושת",
+}
+EXFOLIANTS = {"aha", "bha", "pha"}
+def detect_actives(names, results, key_ingredients=(), top=15):
+    found = set()
+    key_lower = {k.lower() for k in key_ingredients}
+    for index, name in enumerate(names):
+        if index >= top and name.lower() not in key_lower:
+            continue
+        for code, pattern in ACTIVE_PATTERNS.items():
+            if pattern.search(name):
+                found.add(code)
+        group_id = results[name].get("group_id")
+        if group_id == 3:
+            found.add("aha")
+        elif group_id == 4:
+            found.add("bha")
+    return found
+
+
+# (פעילים בצד אחד, פעילים בצד שני, הסבר, האם הכלל חל בשני הכיוונים)
+MIX_RULES = [
+    ({"retinoid"}, {"aha", "bha", "pha"}, "השילוב עלול להעלות סיכון לגירוי ויובש. כדאי להפריד בין ערבים.", True),
+    ({"retinoid"}, {"benzoyl"}, "השילוב עלול לגרות. כדאי להפריד בין בוקר לערב או בין ימים.", True),
+    ({"retinoid"}, {"vitc"}, "כדאי להפריד: ויטמין C בבוקר ורטינואיד בערב.", True),
+    ({"aha", "bha", "pha"}, {"vitc"}, "שניהם חומציים וממריצים גירוי. כדאי להפריד בין בוקר לערב.", True),
+    ({"copper"}, {"aha", "bha", "pha", "vitc"}, "חומצות עלולות לפגוע בפעילות הפפטידים. כדאי להפריד.", False),
+]
+
+
+def _active_label(codes):
+    return " / ".join(ACTIVE_NAMES[code] for code in sorted(codes))
+
+
+def mixing_advice(actives):
+    advice = []
+    for side_a, side_b, reason, both_ways in MIX_RULES:
+        mine, other = actives & side_a, actives & side_b
+        if mine and not other:
+            advice.append((f"לא לשלב עם: {_active_label(side_b)}", f"במוצר יש {_active_label(mine)}. {reason}"))
+        elif both_ways and other and not mine:
+            advice.append((f"לא לשלב עם: {_active_label(side_a)}", f"במוצר יש {_active_label(other)}. {reason}"))
+    if actives & EXFOLIANTS:
+        advice.append(("לא לשלב עם: עוד פילינג או קרצוף", "כדאי לא להפעיל כמה סוגי פילינג באותו יום."))
+    return advice
+
+
+TIME_LABELS = {
+    "MORNING": ("☀️", "מומלץ בבוקר"),
+    "EVENING": ("🌙", "מומלץ בערב"),
+    "MORNING_AND_EVENING": ("☀️🌙", "מתאים לבוקר ולערב"),
+}
+
+
+def usage_time(names, results, actives, meta):
+    code = (meta or {}).get("time")
+    if code in TIME_LABELS:
+        icon, label = TIME_LABELS[code]
+        return icon, label, "לפי דקל"
+
+    sensitizing = any("sun" in results[n].get("flags", []) for n in names)
+    has_uv_filter = any("מסנן קרינת UV" in results[n].get("roles", []) for n in names)
+    if actives & ({"retinoid"} | EXFOLIANTS) or sensitizing:
+        return "🌙", "עדיף בערב, ובבוקר קרם הגנה", "הערכה לפי הרכיבים"
+    if has_uv_filter:
+        return "☀️", "מתאים לבוקר (יש בו מסנני קרינה)", "הערכה לפי הרכיבים"
+    return "☀️🌙", "מתאים לבוקר ולערב", "הערכה לפי הרכיבים"
+
+
+def usage_frequency(actives):
+    if "retinoid" in actives:
+        return "להתחיל פעמיים עד שלוש בשבוע ולעלות בהדרגה לפי עמידות העור."
+    if actives & EXFOLIANTS:
+        return "להתחיל פעמיים בשבוע ולעלות בהדרגה לפי עמידות העור."
+    if "vitc" in actives:
+        return "אפשר להשתמש פעם ביום, ולהתחיל במינון נמוך אם העור רגיש."
+    return "אפשר להשתמש מדי יום, לפי הוראות היצרן."
+
+
+USAGE_KEYWORDS = ("אופן השימוש", "מומלץ", "לשימוש", "חשוב", "פורמולה", "התכשיר", "פעמיים", "בשבוע", "קרם הגנה")
+FREQUENCY_PATTERN = re.compile(r"(פעם ביום|פעמיים|פעמים|מדי יום|כל יום|בשבוע|יומיומי)")
+
+
+def _strip_marks(line):
+    return re.sub(r"^[^0-9A-Za-z֐-׿(]+", "", line).strip()
+
+
+def dekel_usage_lines(description):
+    lines = []
+    for line in (description or "").split("\n"):
+        line = line.strip()
+        if not line or line.startswith(("✔", "-", "•")) or line.startswith("ברשימת הרכיבים"):
+            continue
+        if any(keyword in line for keyword in USAGE_KEYWORDS):
+            line = _strip_marks(line)
+            lines.append(line if len(line) <= 280 else line[:280].rsplit(" ", 1)[0] + "…")
+    return lines[:6]
+
+
+def dekel_frequency(lines):
+    for line in lines:
+        for sentence in re.split(r"(?<=[.!?])\s+", line):
+            if FREQUENCY_PATTERN.search(sentence):
+                return sentence.strip()
+    return ""
+
+
+def guide_html(names, results, meta):
+    actives = detect_actives(names, results, (meta or {}).get("key_ingredients", ()))
+    icon, label, source = usage_time(names, results, actives, meta)
+    dekel_lines = dekel_usage_lines((meta or {}).get("description", ""))
+
+    frequency = dekel_frequency(dekel_lines)
+    frequency_source = "לפי דקל"
+    if not frequency:
+        frequency = usage_frequency(actives)
+        frequency_source = "הערכה כללית"
+
+    advice = mixing_advice(actives)
+    if advice:
+        mix = "".join(
+            f'<div class="g-mix"><span>⚠️</span><div><b>{html.escape(title)}</b>'
+            f"<p>{html.escape(text)}</p></div></div>"
+            for title, text in advice
+        )
+    else:
+        mix = (
+            '<div class="g-mix ok"><span>✅</span><div><b>לא זוהו שילובים בעייתיים</b>'
+            "<p>לא נמצאו במוצר פעילים חזקים שדורשים הפרדה.</p></div></div>"
+        )
+
+    active_chips = "".join(f"<span>{html.escape(ACTIVE_NAMES[a])}</span>" for a in sorted(actives))
+    active_row = f'<div class="g-actives">פעילים בולטים: {active_chips}</div>' if actives else ""
+
+    instructions = ""
+    if dekel_lines:
+        items = "".join(f"<li>{html.escape(line)}</li>" for line in dekel_lines)
+        instructions = (
+            '<div class="g-instr"><div class="g-kicker">הוראות שימוש ואזהרות</div>'
+            f'<ul class="g-list">{items}</ul><div class="g-src">מתוך עמוד המוצר אצל דקל</div></div>'
+        )
+
+    return (
+        '<div class="guide"><div class="g-grid">'
+        f'<div class="g-card"><div class="g-ico">{icon}</div><div><div class="g-kicker">מתי להשתמש</div>'
+        f'<div class="g-title">{html.escape(label)}</div><div class="g-src">{html.escape(source)}</div></div></div>'
+        f'<div class="g-card"><div class="g-ico">🗓️</div><div><div class="g-kicker">באיזו תדירות</div>'
+        f'<div class="g-title g-small">{html.escape(frequency)}</div><div class="g-src">{html.escape(frequency_source)}</div></div></div>'
+        "</div>"
+        f"{instructions}{active_row}"
+        '<div class="g-kicker g-sep">עם מה לא כדאי לשלב</div>'
+        f"{mix}"
+        '<div class="g-note">הנחיות כלליות להכוונה בלבד ואינן ייעוץ רפואי. כדאי לפעול לפי ההוראות על האריזה ולהתייעץ עם רופא/ת עור, במיוחד בהיריון, בהנקה ובעור רגיש.</div>'
+        "</div>"
+    )
+
+
 def search_dekel(ingredient):
     return search_many([ingredient])[ingredient]
 
@@ -599,6 +856,7 @@ def reset_all():
     st.session_state.product_source = None
     st.session_state.product_status = None
     st.session_state.selected_product = None
+    st.session_state.product_meta = None
     st.session_state.uploader_key += 1
     st.session_state.manual_key += 1
 
@@ -631,6 +889,8 @@ if "product_status" not in st.session_state:
     st.session_state.product_status = None
 if "selected_product" not in st.session_state:
     st.session_state.selected_product = None
+if "product_meta" not in st.session_state:
+    st.session_state.product_meta = None
 
 
 def section(icon, title, subtitle="", index=""):
@@ -823,6 +1083,15 @@ def show_summary(ingredients):
         unsafe_allow_html=True,
     )
 
+    section("🗂️", "קבוצות לפי שימוש", "מה כל רכיב עושה במוצר")
+    st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
+
+    section("🧭", "מדריך שימוש", "מתי, באיזו תדירות ועם מה לא כדאי לשלב")
+    st.markdown(
+        guide_html(checked, st.session_state.results, st.session_state.product_meta),
+        unsafe_allow_html=True,
+    )
+
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
         f'<td class="ing">{html.escape(ing)}</td>'
@@ -916,7 +1185,7 @@ def identify_product(image_bytes):
 def choose_dekel_product(product):
     try:
         with st.spinner("מביאה את הרכיבים והדירוגים מדקל..."):
-            names, results = load_product_ingredients(product["slug"])
+            names, results, meta = load_product_ingredients(product["slug"])
     except Exception:
         st.error("לא הצלחתי להביא את הרכיבים של המוצר כרגע. נסי שוב בעוד רגע.")
         return
@@ -924,6 +1193,7 @@ def choose_dekel_product(product):
     st.session_state.results.update(results)
     st.session_state.ocr_ingredients_text = "\n".join(names)
     st.session_state.selected_product = product
+    st.session_state.product_meta = meta
     st.session_state.product_candidates = []
     st.session_state.product_status = None
     st.rerun()
@@ -935,6 +1205,7 @@ def choose_obf_product(candidate):
     st.session_state.selected_product = {
         "source": "obf", "name": candidate["name"], "company": candidate["brand"],
     }
+    st.session_state.product_meta = None
     st.session_state.product_candidates = []
     st.session_state.product_status = None
     st.rerun()
@@ -1039,6 +1310,7 @@ with st.container(border=True):
                 ingredients = split_ingredients(extracted_text.replace(";", ","))
                 st.session_state.ocr_ingredients_text = "\n".join(ingredients)
                 st.session_state.selected_product = None
+                st.session_state.product_meta = None
 
 if st.session_state.ocr_ingredients_text:
     with st.container(border=True):
