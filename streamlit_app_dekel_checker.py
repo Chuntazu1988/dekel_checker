@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 import time
+from urllib.parse import quote
 from pathlib import Path
 
 import numpy as np
@@ -334,6 +335,60 @@ def _fetch_many(ingredients, on_progress=None):
     return results
 
 
+PRODUCTS_JS = """async (term) => {
+  const r = await fetch(
+    "/wp-admin/admin-ajax.php?action=get_product_suggestions&searchTerm=" + encodeURIComponent(term),
+    {credentials: "same-origin"}
+  );
+  if (!r.ok) return {error: "http " + r.status};
+  return await r.json();
+}"""
+
+
+def _clean(value):
+    value = (value or "").strip()
+    return "" if value in ("None", "null") else value
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def search_products(term):
+    """מחפשת תכשירים בקטלוג של דקל. שגיאות לא נשמרות במטמון."""
+    env = load_env()
+    ensure_playwright_browser()
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            context = _new_context(p, browser)
+            page = context.new_page()
+            _open_dictionary(page)
+
+            login = _ensure_logged_in(page, context, env)
+            if login is not True:
+                raise RuntimeError("login")
+
+            response = page.evaluate(PRODUCTS_JS, term)
+        finally:
+            browser.close()
+
+    items = response.get("data") if isinstance(response, dict) else None
+    if not isinstance(items, list):
+        raise RuntimeError("bad-response")
+
+    return [
+        {
+            "name": _clean(item.get("primaryName")),
+            "name2": _clean(item.get("secondaryName")),
+            "company": _clean(item.get("companyName")),
+            "description": _plain_text(item.get("description")),
+            "slug": _clean(item.get("slug")),
+            "picture": _clean(item.get("productPicture")),
+            "verified": str(item.get("verified")).lower() == "true",
+        }
+        for item in items
+    ]
+
+
 def search_dekel(ingredient):
     return search_many([ingredient])[ingredient]
 
@@ -657,6 +712,67 @@ if uploaded_image and st.session_state.ocr_ingredients_text:
 
 if st.session_state.selected_ingredient:
     show_result(st.session_state.selected_ingredient)
+
+def product_card_html(product):
+    verified = product["verified"]
+    seal = (
+        '<span class="dv-seal"><i>✔</i> DEKEL VERIFIED</span>'
+        if verified
+        else '<span class="dv-no">לא עומד בתקן Dekel Verified</span>'
+    )
+
+    picture = product.get("picture", "")
+    img = ""
+    if picture and re.fullmatch(r"[A-Za-z0-9+/=]+", picture):
+        mime = "image/webp" if picture.startswith("UklGR") else "image/png" if picture.startswith("iVBOR") else "image/jpeg"
+        img = f'<img class="pimg" alt="" src="data:{mime};base64,{picture}">'
+
+    description = product["description"]
+    limit = 260 if verified else 420
+    if len(description) > limit:
+        description = description[:limit].rsplit(" ", 1)[0] + "…"
+    paragraphs = "".join(f"<p>{html.escape(line)}</p>" for line in description.split("\n") if line.strip())
+
+    link = ""
+    if verified and product.get("slug"):
+        url = "https://thedekel.co.il/product-verified/?slug=" + quote(product["slug"])
+        link = f'<a class="plink" href="{html.escape(url)}" target="_blank" rel="noopener">לעמוד המוצר באתר דקל ↗</a>'
+
+    name2 = f'<div class="pname2">{html.escape(product["name2"])}</div>' if product.get("name2") else ""
+    return (
+        f'<div class="pcard {"verified" if verified else "notverified"}">{img}<div class="pbody">'
+        f'<div class="pco">{html.escape(product["company"])}</div>'
+        f'<div class="pname">{html.escape(product["name"])}</div>{name2}'
+        f'<div class="pseal">{seal}</div>{paragraphs}{link}</div></div>'
+    )
+
+
+with st.container(border=True):
+    section("🏷️", "האם המוצר מאושר דקל?", "חפשי מוצר לפי שם או מותג ונבדוק אם הוא Dekel Verified", "04")
+    product_term = st.text_input(
+        "שם מוצר או מותג",
+        label_visibility="collapsed",
+        placeholder="The Ordinary, CeraVe, Cetaphil...",
+        key=f"product_{st.session_state.manual_key}",
+    )
+
+    if st.button("בדקי מוצר", key="product_search"):
+        if len(product_term.strip()) < 2:
+            st.warning("נא להזין שם מוצר או מותג")
+        else:
+            try:
+                with st.spinner("מחפשת בקטלוג של דקל..."):
+                    found = search_products(product_term.strip())
+            except Exception:
+                found = None
+                st.error("לא הצלחתי לבדוק את המוצר כרגע. נסי שוב בעוד רגע.")
+
+            if found is not None and not found:
+                st.info("לא נמצא מוצר כזה בקטלוג של דקל. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
+            elif found:
+                verified_count = sum(p["verified"] for p in found)
+                st.caption(f"נמצאו {len(found)} מוצרים, {verified_count} מהם Dekel Verified")
+                st.markdown("".join(product_card_html(p) for p in found[:8]), unsafe_allow_html=True)
 
 with st.container(border=True):
     section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
