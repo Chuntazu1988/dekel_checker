@@ -1270,6 +1270,12 @@ if "nf_pending" not in st.session_state:
     st.session_state.nf_pending = None
 if "ing_choices" not in st.session_state:
     st.session_state.ing_choices = []
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "photo_thumb" not in st.session_state:
+    st.session_state.photo_thumb = None
+if "photo_source" not in st.session_state:
+    st.session_state.photo_source = False
 if "routine" not in st.session_state:
     # השגרה נשמרת בכתובת (ובדפדפן), כדי שתחזור בביקור הבא
     st.session_state.routine = [slug for slug in st.query_params.get("routine", "").split(",") if slug]
@@ -1595,6 +1601,8 @@ def _remember_pool(products):
 
 
 def identify_product(image_bytes):
+    st.session_state.photo_thumb = make_thumb(image_bytes)
+    st.session_state.photo_source = True
     st.session_state.product_candidates = []
     st.session_state.product_source = None
     st.session_state.product_pool = {}
@@ -1681,6 +1689,7 @@ def continue_search():
 CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
 TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
 TAB_ROUTINE = "🗓️ השגרה שלי"
+TAB_HISTORY = "🕘 היסטוריה"
 
 
 @st.cache_data(show_spinner=False)
@@ -1755,6 +1764,7 @@ def flag_not_found(term, found):
 
 
 def search_by_typed_name(term):
+    st.session_state.photo_source = False
     try:
         with st.spinner("מחפשת בקטלוג של דקל..."):
             found = search_products(term)
@@ -1770,7 +1780,42 @@ def search_by_typed_name(term):
     st.rerun()
 
 
-def choose_dekel_product(product):
+def make_thumb(image_bytes, side=240):
+    """תמונה ממוזערת (JPEG קטן) לשמירה בהיסטוריה."""
+    try:
+        image = open_image(io.BytesIO(image_bytes))
+        image.thumbnail((side, side))
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=78)
+        return buffer.getvalue()
+    except Exception:
+        return None
+
+
+def catalog_thumb(product):
+    picture = product.get("picture", "")
+    if picture and re.fullmatch(r"[A-Za-z0-9+/=]+", picture) and len(picture) < 400_000:
+        try:
+            return make_thumb(base64.b64decode(picture))
+        except Exception:
+            return None
+    return None
+
+
+MAX_HISTORY = 30
+
+
+def add_history(kind, key, title, thumb, product=None, meta=None):
+    entry = {
+        "kind": kind, "key": key, "title": title, "thumb": thumb,
+        "text": st.session_state.ocr_ingredients_text, "product": product, "meta": meta,
+        "time": datetime.datetime.now().strftime("%d.%m %H:%M"),
+    }
+    history = [item for item in st.session_state.history if item["key"] != key]
+    st.session_state.history = ([entry] + history)[:MAX_HISTORY]
+
+
+def choose_dekel_product(product, from_photo=False):
     try:
         with st.spinner("מביאה את הרכיבים והדירוגים מדקל..."):
             names, results, meta = load_product_ingredients(product["slug"])
@@ -1785,6 +1830,8 @@ def choose_dekel_product(product):
     st.session_state.product_candidates = []
     st.session_state.product_status = None
     st.session_state.product_hits = None
+    thumb = (st.session_state.photo_thumb if from_photo else None) or catalog_thumb(product)
+    add_history("product", f"p:{product.get('slug') or product['name']}", product["name"], thumb, product, meta)
     if product.get("verified"):
         st.session_state.celebrate_id = int(time.time() * 1000)
     st.session_state.goto_tab = TAB_INGREDIENTS
@@ -1798,6 +1845,10 @@ def choose_obf_product(candidate):
         "source": "obf", "name": candidate["name"], "company": candidate["brand"],
     }
     st.session_state.product_meta = None
+    add_history(
+        "product", f"o:{candidate['brand']}:{candidate['name']}", candidate["name"] or "מוצר",
+        st.session_state.photo_thumb, st.session_state.selected_product, None,
+    )
     st.session_state.product_candidates = []
     st.session_state.product_status = None
     st.session_state.goto_tab = TAB_INGREDIENTS
@@ -1827,7 +1878,7 @@ def render_candidates():
             for index, product in enumerate(candidates):
                 st.markdown(product_card_html(product), unsafe_allow_html=True)
                 if st.button("✔ זה המוצר שלי", key=f"pick_{index}"):
-                    choose_dekel_product(product)
+                    choose_dekel_product(product, from_photo=st.session_state.photo_source)
         else:
             st.warning(
                 "המוצר לא נמצא בקטלוג של דקל. אלה התאמות ממאגר פתוח (Open Beauty Facts), "
@@ -1920,6 +1971,12 @@ def tab_ingredients():
                 st.session_state.ocr_ingredients_text = "\n".join(ingredients)
                 st.session_state.selected_product = None
                 st.session_state.product_meta = None
+                if ingredients:
+                    add_history(
+                        "ingredients", "i:" + "|".join(ingredients[:6]).lower(),
+                        "רשימת רכיבים: " + ", ".join(ingredients[:3]),
+                        make_thumb(uploaded_image.getvalue()),
+                    )
 
     if st.session_state.ocr_ingredients_text:
         with st.container(border=True):
@@ -2173,6 +2230,48 @@ def tab_routine():
         st.caption("ההמלצות לפי הפעילים הבולטים בכל מוצר וכללי שילוב כלליים, ואינן ייעוץ רפואי.")
 
 
+def open_history_entry(entry):
+    st.session_state.ocr_ingredients_text = entry["text"]
+    st.session_state.selected_product = entry["product"]
+    st.session_state.product_meta = entry["meta"]
+    st.session_state.celebrate_id = None
+    st.session_state.goto_tab = TAB_INGREDIENTS
+    st.rerun()
+
+
+def tab_history():
+    how_box(
+        "🕘", "היסטוריית חיפושים",
+        "כל מוצר שזיהית וכל רשימת רכיבים שסרקת בביקור הזה נשמרים כאן, עם התמונה. "
+        "לחיצה על 'פתחי סיכום' טוענת מחדש את הסיכום.",
+    )
+    history = st.session_state.history
+    if not history:
+        st.info("עוד אין היסטוריה. אחרי שתזהי מוצר או תסרקי רשימת רכיבים, הם יופיעו כאן.")
+        return
+    with st.container(border=True):
+        section("🕘", "החיפושים שלי", f"{len(history)} פריטים")
+        for index, entry in enumerate(history):
+            thumb_col, text_col, button_col = st.columns([1, 4, 2], vertical_alignment="center")
+            if entry["thumb"]:
+                thumb_col.image(entry["thumb"], width=72)
+            else:
+                thumb_col.markdown('<div class="hist-noimg">🧴</div>', unsafe_allow_html=True)
+            kind = "מוצר" if entry["kind"] == "product" else "צילום רכיבים"
+            company = (entry["product"] or {}).get("company", "") if entry["kind"] == "product" else ""
+            text_col.markdown(
+                f'<div class="hist-line"><b>{html.escape(entry["title"])}</b>'
+                f'<small>{html.escape(kind)}{" · " + html.escape(company.split("|")[-1].strip()) if company else ""}'
+                f' · {entry["time"]}</small></div>',
+                unsafe_allow_html=True,
+            )
+            if button_col.button("📄 פתחי סיכום", key=f"hist_open_{index}"):
+                open_history_entry(entry)
+        if st.button("🗑️ נקי היסטוריה", key="hist_clear"):
+            st.session_state.history = []
+            st.rerun()
+
+
 def tab_coupons():
     with st.container(border=True):
         section("🎟️", "הטבות וקופונים", "הטבות פעילות באתר דקל, מעודכן אוטומטית")
@@ -2190,7 +2289,7 @@ def tab_coupons():
         st.caption("ההטבות נקראות מהאתר של דקל וייתכן שהן משתנות. כדאי לוודא את התנאים בעמוד ההטבה.")
 
 
-NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_COUPONS]
+NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_HISTORY, TAB_COUPONS]
 if st.session_state.get("goto_tab") in NAV_TABS:
     st.session_state.nav = st.session_state.pop("goto_tab")
 if st.session_state.get("nav") not in NAV_TABS:
@@ -2202,6 +2301,7 @@ active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visib
     TAB_PRODUCT: tab_product,
     TAB_COMPAT: tab_compat,
     TAB_ROUTINE: tab_routine,
+    TAB_HISTORY: tab_history,
     TAB_COUPONS: tab_coupons,
 }[active_tab]()
 

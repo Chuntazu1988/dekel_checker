@@ -704,3 +704,10 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 .rt-item small, .rt-line small { display: block; font-size: 0.74rem; color: var(--muted); }
 .rt-line { padding: 0.35rem 0; }
 .rt-line b { font: 600 0.92rem 'Rubik', 'Heebo', sans-serif; }
+
+/* ---------- היסטוריה ---------- */
+.hist-line b { display: block; font: 600 0.95rem/1.4 'Rubik', 'Heebo', sans-serif; }
+.hist-line small { display: block; font-size: 0.76rem; color: var(--muted); }
+.hist-noimg { width: 72px; height: 72px; display: grid; place-items: center; font-size: 1.8rem; border-radius: 14px; background: var(--glass); border: 1px solid var(--edge); }
+[data-testid="stColumn"] [data-testid="stImage"] { width: 80px !important; }
+[data-testid="stColumn"] [data-testid="stImage"] img { width: 80px !important; max-width: 80px !important; height: 80px !important; object-fit: cover; border-radius: 14px; }
