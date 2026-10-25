@@ -1181,7 +1181,7 @@ def search_dekel(ingredient):
 HERO_HTML = """
 <div class="hero">
     <div class="scan"></div>
-    <div class="badge"><i></i>INGREDIENT SCANNER</div>
+    <div class="badge"><i></i>SKINCARE LAB</div>
     <h1>בדיקת רכיבים</h1>
     <p>מצלמים את רשימת הרכיבים, והמערכת סורקת כל רכיב ומראה מה באמת יש במוצר.</p>
     <div class="steps">
@@ -2136,7 +2136,7 @@ def routine_options():
     return options
 
 
-TIME_LABELS = {"MORNING": "בוקר", "EVENING": "ערב", "MORNING_AND_EVENING": "בוקר וערב"}
+ROUTINE_TIME_LABELS = {"MORNING": "בוקר", "EVENING": "ערב", "MORNING_AND_EVENING": "בוקר וערב"}
 
 
 def routine_slot_html(title, icon, items):
@@ -2190,7 +2190,7 @@ def tab_routine():
         section("🧴", "המוצרים שלי", f"{len(entries)} מוצרים")
         for index, entry in enumerate(entries):
             left, right = st.columns([5, 1])
-            time_label = TIME_LABELS.get(entry.get("time"), "בוקר או ערב")
+            time_label = ROUTINE_TIME_LABELS.get(entry.get("time"), "בוקר או ערב")
             left.markdown(
                 f'<div class="rt-line"><b>{html.escape(entry["name"])}</b>'
                 f'<small>{html.escape(entry["company"].split("|")[-1].strip())} · {time_label}'

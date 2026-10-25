@@ -5,65 +5,84 @@
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var doc = document;
 
-    /* ---------- חלקיקים רקע ---------- */
+    /* ---------- רקע: זוהר צבעוני זז ובועות סרום צפות ---------- */
     var canvas = doc.createElement('canvas');
     canvas.id = 'fx-bg';
     doc.body.insertBefore(canvas, doc.body.firstChild);
     var ctx = canvas.getContext('2d');
     var W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var mouse = { x: -9999, y: -9999 };
-    var dots = [];
-    var COLORS = ['255,111,181', '139,92,246', '94,234,212'];
+    var bubbles = [];
+    var TINTS = ['255,150,190', '178,140,240', '110,215,195', '255,190,140'];
+    var AURORA = [
+        { c: '255,182,203', x: 0.15, y: 0.2, r: 0.45, sx: 0.00021, sy: 0.00017, p: 0 },
+        { c: '196,170,240', x: 0.85, y: 0.15, r: 0.5, sx: 0.00017, sy: 0.00023, p: 2 },
+        { c: '160,230,215', x: 0.6, y: 0.95, r: 0.55, sx: 0.00019, sy: 0.00015, p: 4 },
+        { c: '255,214,170', x: 0.1, y: 0.85, r: 0.4, sx: 0.00023, sy: 0.00019, p: 1 }
+    ];
+
+    function newBubble(fromBottom) {
+        var r = Math.random() * 30 + 8;
+        return {
+            x: Math.random() * W, y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
+            r: r, vy: -(Math.random() * 0.35 + 0.12), ph: Math.random() * 6.28,
+            t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0
+        };
+    }
 
     function resize() {
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = W * dpr; canvas.height = H * dpr;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        var n = Math.max(26, Math.min(70, Math.round(W / 20)));
-        dots = [];
-        for (var i = 0; i < n; i++) {
-            dots.push({
-                x: Math.random() * W, y: Math.random() * H,
-                vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
-                r: Math.random() * 1.6 + 0.6,
-                c: COLORS[i % COLORS.length]
-            });
-        }
+        var n = Math.max(14, Math.min(34, Math.round(W / 45)));
+        bubbles = [];
+        for (var i = 0; i < n; i++) bubbles.push(newBubble(false));
     }
 
-    function frame() {
+    function drawBubble(q, now) {
+        var wob = Math.sin(now * 0.0009 + q.ph) * 14;
+        var x = q.x + wob, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = 1 - q.pop;
+        var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+        g.addColorStop(0, 'rgba(255,255,255,' + (0.75 * alpha).toFixed(3) + ')');
+        g.addColorStop(0.55, 'rgba(' + q.t + ',' + (0.16 * alpha).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(' + q.t + ',' + (0.34 * alpha).toFixed(3) + ')');
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.8 * alpha).toFixed(3) + ')';
+        ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.4, r * 0.18, 0, 6.2832);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * alpha).toFixed(3) + ')'; ctx.fill();
+    }
+
+    function frame(now) {
         ctx.clearRect(0, 0, W, H);
 
-        if (mouse.x > -999) {
-            var g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 220);
-            g.addColorStop(0, 'rgba(255,111,181,0.16)');
-            g.addColorStop(1, 'rgba(255,111,181,0)');
-            ctx.fillStyle = g;
-            ctx.fillRect(mouse.x - 220, mouse.y - 220, 440, 440);
+        for (var k = 0; k < AURORA.length; k++) {
+            var a = AURORA[k];
+            var ax = (a.x + Math.sin(now * a.sx + a.p) * 0.12) * W;
+            var ay = (a.y + Math.cos(now * a.sy + a.p) * 0.12) * H;
+            var ar = a.r * Math.max(W, H);
+            var ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, ar);
+            ag.addColorStop(0, 'rgba(' + a.c + ',0.34)');
+            ag.addColorStop(1, 'rgba(' + a.c + ',0)');
+            ctx.fillStyle = ag; ctx.fillRect(0, 0, W, H);
         }
 
-        for (var i = 0; i < dots.length; i++) {
-            var a = dots[i];
-            var dx = a.x - mouse.x, dy = a.y - mouse.y, dm = Math.sqrt(dx * dx + dy * dy);
-            if (dm < 140 && dm > 0) { a.x += (dx / dm) * 0.9; a.y += (dy / dm) * 0.9; }
-            a.x += a.vx; a.y += a.vy;
-            if (a.x < -10) a.x = W + 10; else if (a.x > W + 10) a.x = -10;
-            if (a.y < -10) a.y = H + 10; else if (a.y > H + 10) a.y = -10;
+        if (mouse.x > -999) {
+            var g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 200);
+            g.addColorStop(0, 'rgba(255,150,190,0.20)');
+            g.addColorStop(1, 'rgba(255,150,190,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(mouse.x - 200, mouse.y - 200, 400, 400);
+        }
 
-            ctx.beginPath();
-            ctx.arc(a.x, a.y, a.r, 0, 6.2832);
-            ctx.fillStyle = 'rgba(' + a.c + ',0.75)';
-            ctx.fill();
-
-            for (var j = i + 1; j < dots.length; j++) {
-                var b = dots[j];
-                var ddx = a.x - b.x, ddy = a.y - b.y, d = ddx * ddx + ddy * ddy;
-                if (d < 16900) {
-                    ctx.strokeStyle = 'rgba(' + a.c + ',' + (0.16 * (1 - d / 16900)).toFixed(3) + ')';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-                }
-            }
+        for (var i = 0; i < bubbles.length; i++) {
+            var q = bubbles[i];
+            var dx = q.x - mouse.x, dy = q.y - mouse.y, dm = Math.sqrt(dx * dx + dy * dy);
+            if (dm < q.r + 90 && dm > 0) { q.x += (dx / dm) * 1.1; q.y += (dy / dm) * 1.1; }
+            q.y += q.vy;
+            if (q.pop > 0) { q.pop += 0.07; }
+            if (q.pop >= 1 || q.y < -q.r - 20) bubbles[i] = newBubble(true);
+            else drawBubble(q, now);
         }
         if (!doc.hidden) requestAnimationFrame(frame);
     }
@@ -72,6 +91,13 @@
         resize();
         window.addEventListener('resize', resize);
         doc.addEventListener('visibilitychange', function () { if (!doc.hidden) requestAnimationFrame(frame); });
+        doc.addEventListener('pointerdown', function (e) {
+            for (var i = 0; i < bubbles.length; i++) {
+                var q = bubbles[i], bx = q.x + Math.sin(performance.now() * 0.0009 + q.ph) * 14;
+                var d = Math.sqrt((bx - e.clientX) * (bx - e.clientX) + (q.y - e.clientY) * (q.y - e.clientY));
+                if (d < q.r + 6 && q.pop === 0) q.pop = 0.01;
+            }
+        }, { passive: true });
         requestAnimationFrame(frame);
     } else {
         canvas.style.display = 'none';
@@ -201,7 +227,7 @@
     });
 
     /* ---------- קונפטי חגיגי ---------- */
-    var CONFETTI_COLORS = ['#FF6FB5', '#8B5CF6', '#5EEAD4', '#FBBF24', '#FFFFFF', '#F472B6', '#7DD3FC'];
+    var CONFETTI_COLORS = ['#F08AB0', '#B28CF0', '#6ED7C3', '#FBBF24', '#FFFFFF', '#F472B6', '#7DD3FC'];
 
     function launchConfetti(host) {
         if (reduce) return;
