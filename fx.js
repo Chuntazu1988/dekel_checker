@@ -335,3 +335,30 @@
     new MutationObserver(scan).observe(doc.body, { childList: true, subtree: true });
     scan();
 })();
+
+// שמירת השגרה בדפדפן: הכתובת היא מקור האמת, והדפדפן זוכר אותה לביקור הבא
+(function () {
+    if (window.__dekelRoutine) return;
+    window.__dekelRoutine = true;
+    var KEY = "dekel_routine";
+    function readParam() {
+        return new URLSearchParams(window.location.search).get("routine");
+    }
+    try {
+        var stored = window.localStorage.getItem(KEY);
+        if (!readParam() && stored && !window.sessionStorage.getItem("dekel_routine_tried")) {
+            window.sessionStorage.setItem("dekel_routine_tried", "1");
+            var params = new URLSearchParams(window.location.search);
+            params.set("routine", stored);
+            window.location.replace(window.location.pathname + "?" + params.toString());
+            return;
+        }
+    } catch (e) {}
+    setInterval(function () {
+        try {
+            var value = readParam();
+            if (value) window.localStorage.setItem(KEY, value);
+            else window.localStorage.removeItem(KEY);
+        } catch (e) {}
+    }, 1000);
+})();

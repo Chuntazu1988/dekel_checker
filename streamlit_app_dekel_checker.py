@@ -1212,6 +1212,7 @@ def reset_all():
     st.session_state.nf_pending = None
     st.session_state.ing_choices = []
     st.session_state.routine = []
+    save_routine()
     st.session_state.product_lines = []
     st.session_state.product_pool = {}
     st.session_state.product_rejected = []
@@ -1270,7 +1271,15 @@ if "nf_pending" not in st.session_state:
 if "ing_choices" not in st.session_state:
     st.session_state.ing_choices = []
 if "routine" not in st.session_state:
-    st.session_state.routine = []
+    # השגרה נשמרת בכתובת (ובדפדפן), כדי שתחזור בביקור הבא
+    st.session_state.routine = [slug for slug in st.query_params.get("routine", "").split(",") if slug]
+
+
+def save_routine():
+    if st.session_state.routine:
+        st.query_params["routine"] = ",".join(st.session_state.routine)
+    elif "routine" in st.query_params:
+        del st.query_params["routine"]
 
 if st.session_state.celebrate_id:
     st.markdown(
@@ -1865,6 +1874,7 @@ def selected_product_banner():
                 st.caption("✔ המוצר כבר בשגרה שלך")
             elif st.button("➕ הוסיפי לשגרה שלי", key="banner_add_routine"):
                 st.session_state.routine.append(product["slug"])
+                save_routine()
                 st.toast("המוצר נוסף לשגרה")
                 st.rerun()
     st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
@@ -2110,9 +2120,11 @@ def tab_routine():
                 st.info("המוצר כבר בשגרה")
             else:
                 st.session_state.routine.append(slug)
+                save_routine()
                 st.rerun()
 
-    entries = [by_slug[slug] for slug in st.session_state.routine if slug in by_slug]
+    st.session_state.routine = [slug for slug in st.session_state.routine if slug in by_slug]
+    entries = [by_slug[slug] for slug in st.session_state.routine]
     if not entries:
         st.info("עוד אין מוצרים בשגרה. אפשר להוסיף מוצר כאן, או אחרי זיהוי מוצר בלשונית 'צילום המוצר עצמו'.")
         return
@@ -2130,6 +2142,7 @@ def tab_routine():
             )
             if right.button("הסרה", key=f"routine_rm_{index}"):
                 st.session_state.routine.remove(entry["slug"])
+                save_routine()
                 st.rerun()
 
     slots, conflicts, notes = plan_routine(entries, categories_of)
