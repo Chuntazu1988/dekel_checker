@@ -13,6 +13,8 @@
     var W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var mouse = { x: -9999, y: -9999 };
     var bubbles = [];
+    var icons = [];
+    var ICONS = ['💧', '🧴', '🌿', '🌸', '🧪', '🫧', '✨', '🪷', '🍃', '🫙'];
     var TINTS = ['255,150,190', '178,140,240', '110,215,195', '255,190,140'];
     var AURORA = [
         { c: '255,182,203', x: 0.15, y: 0.2, r: 0.45, sx: 0.00021, sy: 0.00017, p: 0 },
@@ -37,6 +39,31 @@
         var n = Math.max(14, Math.min(34, Math.round(W / 45)));
         bubbles = [];
         for (var i = 0; i < n; i++) bubbles.push(newBubble(false));
+        icons = [];
+        var m = Math.max(7, Math.min(16, Math.round(W / 85)));
+        for (var j = 0; j < m; j++) icons.push(newIcon(false));
+    }
+
+    function newIcon(fromBottom) {
+        var size = Math.random() * 22 + 22;
+        return {
+            e: ICONS[Math.floor(Math.random() * ICONS.length)], s: size,
+            x: Math.random() * W, y: fromBottom ? H + size + Math.random() * 120 : Math.random() * H,
+            vy: -(Math.random() * 0.28 + 0.1), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
+            a: Math.random() * 0.25 + 0.38
+        };
+    }
+
+    function drawIcon(q, now) {
+        var sway = Math.sin(now * 0.0007 + q.ph);
+        ctx.save();
+        ctx.globalAlpha = q.a;
+        ctx.translate(q.x + sway * 22, q.y);
+        ctx.rotate(sway * 0.35 + q.rot * 0.2);
+        ctx.font = q.s + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(q.e, 0, 0);
+        ctx.restore();
     }
 
     function drawBubble(q, now) {
@@ -73,6 +100,13 @@
             g.addColorStop(1, 'rgba(255,150,190,0)');
             ctx.fillStyle = g;
             ctx.fillRect(mouse.x - 200, mouse.y - 200, 400, 400);
+        }
+
+        for (var m2 = 0; m2 < icons.length; m2++) {
+            var ic = icons[m2];
+            ic.y += ic.vy;
+            if (ic.y < -ic.s - 20) icons[m2] = newIcon(true);
+            else drawIcon(ic, now);
         }
 
         for (var i = 0; i < bubbles.length; i++) {

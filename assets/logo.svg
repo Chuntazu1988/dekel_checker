@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72" width="64" height="72">
+  <defs>
+    <linearGradient id="g" x1="12" y1="8" x2="54" y2="66" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF8FB8"/>
+      <stop offset="0.55" stop-color="#B28CF0"/>
+      <stop offset="1" stop-color="#5FD6C0"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="drop"><path d="M32 4C32 4 9 29 9 45a23 23 0 0 0 46 0C55 29 32 4 32 4Z"/></clipPath>
+    <style>
+      .float { animation: float 5s ease-in-out infinite; transform-origin: 32px 40px; }
+      .sweep { animation: sweep 3.8s ease-in-out infinite; }
+      .twinkle { animation: twinkle 2.6s ease-in-out infinite; transform-origin: 53px 14px; }
+      .twinkle2 { animation: twinkle 2.6s ease-in-out 1.1s infinite; transform-origin: 10px 20px; }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+      @keyframes sweep { 0% { transform: translateX(-70px) skewX(-18deg); } 55%,100% { transform: translateX(70px) skewX(-18deg); } }
+      @keyframes twinkle { 0%,100% { opacity: .25; transform: scale(.6); } 50% { opacity: 1; transform: scale(1.1); } }
+    </style>
+  </defs>
+  <g class="float">
+    <path d="M32 4C32 4 9 29 9 45a23 23 0 0 0 46 0C55 29 32 4 32 4Z" fill="url(#g)"/>
+    <g clip-path="url(#drop)"><rect class="sweep" x="0" y="0" width="22" height="72" fill="url(#shine)"/></g>
+    <ellipse cx="22" cy="34" rx="4.5" ry="9" transform="rotate(24 22 34)" fill="#fff" opacity="0.5"/>
+    <path d="M21 46.5l8 8 15-17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path class="twinkle" d="M53 6l1.9 5.1L60 13l-5.1 1.9L53 20l-1.9-5.1L46 13l5.1-1.9Z" fill="#FF8FB8"/>
+  <path class="twinkle2" d="M10 14l1.3 3.4L15 18.7l-3.7 1.3L10 23.5 8.7 20 5 18.7l3.7-1.3Z" fill="#5FD6C0"/>
+</svg>

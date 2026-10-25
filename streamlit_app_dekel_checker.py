@@ -30,7 +30,10 @@ from compat import (
     mixing_advice,
 )
 
-st.set_page_config(page_title="Dekel Checker", layout="centered")
+_logo_png = Path(__file__).parent / "assets" / "logo.png"
+st.set_page_config(
+    page_title="Dekel Checker", page_icon=str(_logo_png) if _logo_png.exists() else "💧", layout="centered"
+)
 
 EMOJI_CLASS = {"🟢": "good", "🟡": "caution", "🔴": "bad"}
 GRADE_CLASS = {"מעולה": "grade-excellent", "טוב": "grade-good", "עובר": "grade-pass"}
@@ -1178,8 +1181,28 @@ def search_dekel(ingredient):
 # UI
 # ======================
 
+def _logo_uri():
+    path = Path(__file__).parent / "assets" / "logo.svg"
+    try:
+        return "data:image/svg+xml;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+    except OSError:
+        return ""
+
+
+def brand_html(size="md"):
+    return (
+        f'<div class="brand {size}"><img class="brand-mark" alt="" src="{_logo_uri()}">'
+        '<div class="brand-name"><b>Dekel</b> Checker<small>SKINCARE LAB</small></div></div>'
+    )
+
+
 HERO_HTML = """
 <div class="hero">
+    <div class="scene" aria-hidden="true">
+        <span class="sc-drop">💧</span><i class="sc-ripple"></i><i class="sc-ripple r2"></i>
+        <span class="sc-bottle">🧴</span><span class="sc-leaf">🌿</span><span class="sc-flower">🌸</span>
+        <span class="sc-jar">🫙</span><span class="sc-spark s1">✨</span><span class="sc-spark s2">✨</span>
+    </div>
     <div class="scan"></div>
     <div class="badge"><i></i>SKINCARE LAB</div>
     <h1>בדיקת רכיבים</h1>
@@ -1208,6 +1231,7 @@ def reset_all():
     st.session_state.selected_product = None
     st.session_state.product_meta = None
     st.session_state.celebrate_id = None
+    st.session_state.result_popup = False
     st.session_state.nv_product = None
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
@@ -1223,6 +1247,7 @@ def reset_all():
     st.session_state.manual_key += 1
 
 
+st.markdown(brand_html(), unsafe_allow_html=True)
 top_left, top_right, _ = st.columns([1, 1, 2])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
 top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
@@ -1276,6 +1301,8 @@ if "ing_choices" not in st.session_state:
     st.session_state.ing_choices = []
 if "auto_scan" not in st.session_state:
     st.session_state.auto_scan = False
+if "result_popup" not in st.session_state:
+    st.session_state.result_popup = False
 if "history" not in st.session_state:
     st.session_state.history = []
 if "photo_thumb" not in st.session_state:
@@ -1508,6 +1535,54 @@ def warnings_card_html(checked, results):
     return '<div class="warn-card"><div class="warn-head">⚡ אזהרות ברמת המוצר</div>' + "".join(rows) + "</div>"
 
 
+def ingredient_table_html(checked):
+    rows = "".join(
+        f'<tr style="--i:{min(index, 14)}">'
+        f'<td class="ing">{html.escape(ing)}</td>'
+        f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")} {grade_class(r)}">'
+        f'{html.escape(r["emoji"])} {html.escape(r["rating"])}</span></td>'
+        f'<td>{html.escape(r["role"])}</td>'
+        "</tr>"
+        for index, (ing, r) in enumerate((ing, st.session_state.results[ing]) for ing in checked)
+    )
+    return (
+        '<div class="table-wrap"><table class="ing-table">'
+        "<thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table></div>"
+    )
+
+
+@st.dialog("🧭 מדריך שימוש", width="large")
+def guide_dialog(checked):
+    st.markdown(
+        guide_html(checked, st.session_state.results, st.session_state.product_meta), unsafe_allow_html=True
+    )
+
+
+@st.dialog("🗂️ מה כל רכיב עושה", width="large")
+def groups_dialog(checked):
+    st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
+
+
+@st.dialog("🧾 כל הרכיבים", width="large")
+def table_dialog(checked):
+    st.markdown(ingredient_table_html(checked), unsafe_allow_html=True)
+
+
+@st.dialog("🔬 התוצאה שלך", width="large")
+def result_dialog(names):
+    checked = [name for name in names if name in st.session_state.results]
+    results = [st.session_state.results[name] for name in checked]
+    for card in (
+        score_card_html(results),
+        key_points_html(checked, st.session_state.results, st.session_state.product_meta),
+        warnings_card_html(checked, results),
+    ):
+        if card:
+            st.markdown(card, unsafe_allow_html=True)
+    st.caption("סגרי את החלון כדי לראות את הפירוט המלא: מדריך שימוש, קבוצות וטבלה.")
+
+
 def key_points_html(checked, results_map, meta):
     """כמה משפטים פשוטים בראש התוצאה, לפני כל הפירוט."""
     results = [results_map[name] for name in checked]
@@ -1570,31 +1645,14 @@ def show_summary(ingredients):
         )
         st.markdown(f'<div class="legend">הירוקים לפי דרגה: {pills}</div>', unsafe_allow_html=True)
 
-    with st.expander("🧭 מדריך שימוש מלא: מתי, באיזו תדירות ועם מה לא לשלב"):
-        st.markdown(
-            guide_html(checked, st.session_state.results, st.session_state.product_meta),
-            unsafe_allow_html=True,
-        )
-
-    with st.expander("🗂️ קבוצות לפי שימוש: מה כל רכיב עושה במוצר"):
-        st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
-
-    rows = "".join(
-        f'<tr style="--i:{min(index, 14)}">'
-        f'<td class="ing">{html.escape(ing)}</td>'
-        f'<td><span class="chip {EMOJI_CLASS.get(r["emoji"], "other")} {grade_class(r)}">'
-        f'{html.escape(r["emoji"])} {html.escape(r["rating"])}</span></td>'
-        f'<td>{html.escape(r["role"])}</td>'
-        "</tr>"
-        for index, (ing, r) in enumerate((ing, st.session_state.results[ing]) for ing in checked)
-    )
-    with st.expander("🧾 טבלת הרכיבים המלאה"):
-        st.markdown(
-            '<div class="table-wrap"><table class="ing-table">'
-            "<thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>"
-            f"<tbody>{rows}</tbody></table></div>",
-            unsafe_allow_html=True,
-        )
+    st.markdown('<div class="ask small">לפירוט המלא</div>', unsafe_allow_html=True)
+    guide_col, groups_col, table_col = st.columns(3)
+    if guide_col.button("🧭 מדריך שימוש", key="open_guide", use_container_width=True):
+        guide_dialog(checked)
+    if groups_col.button("🗂️ מה כל רכיב עושה", key="open_groups", use_container_width=True):
+        groups_dialog(checked)
+    if table_col.button("🧾 כל הרכיבים", key="open_table", use_container_width=True):
+        table_dialog(checked)
 
     flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
     if flagged:
@@ -2059,10 +2117,16 @@ def tab_ingredients():
             if st.session_state.auto_scan:
                 st.session_state.auto_scan = False
                 check_all(ingredient_list)
+                st.session_state.result_popup = True
             if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
                 check_all(ingredient_list)
+                st.session_state.result_popup = True
 
             show_summary(ingredient_list)
+            if st.session_state.result_popup:
+                st.session_state.result_popup = False
+                if any(name in st.session_state.results for name in ingredient_list):
+                    result_dialog(ingredient_list)
 
             with st.expander("בדיקה של רכיב בודד מהרשימה"):
                 for ing in ingredient_list:
