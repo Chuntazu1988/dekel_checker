@@ -7,10 +7,10 @@
     --bg: #FBF5F2;
     --ink: #3A2A3C;
     --muted: #85708B;
-    --pink: var(--pink);
-    --pink-d: var(--pink-d);
-    --violet: var(--violet);
-    --aqua: var(--aqua);
+    --pink: #E0568F;
+    --pink-d: #C23B78;
+    --violet: #9B7BD6;
+    --aqua: #2FA793;
     --amber: #D4922A;
     --rose: #E0526B;
     --glass: rgba(255, 255, 255, 0.72);
@@ -987,3 +987,8 @@ html[data-theme="night"] .brand-mark { filter: drop-shadow(0 8px 18px rgba(161, 
 .theme-tip.show { opacity: 1; transform: none; }
 
 html[data-theme="night"] .ring::before { background: #1C1530; box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.5); }
+
+/* ניגודיות: כפתורים וכרטיסים בולטים יותר על הרקע */
+.stButton > button:not([data-testid="stBaseButton-primary"]), .stLinkButton > a { border: 1.5px solid rgba(var(--p-rgb), 0.38); box-shadow: var(--sh-1); }
+[data-testid="stVerticalBlockBorderWrapper"] { border: 1.5px solid rgba(var(--p-rgb), 0.22) !important; box-shadow: var(--sh-2); }
+.pcard, .rcard, .kp, .cp-card, .rt-col, .ug { border-color: rgba(var(--p-rgb), 0.25); }
