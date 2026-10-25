@@ -691,3 +691,16 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 .how span:not(.how-ico) { display: block; margin-top: 0.15rem; font-size: 0.88rem; line-height: 1.6; color: #D8D3E8; }
 .st-key-nav [data-testid="stButtonGroup"] > div { display: flex; flex-wrap: wrap; width: 100%; gap: 0.4rem; }
 .st-key-nav [data-testid="stButtonGroup"] > div { flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important; }
+
+/* ---------- השגרה שלי ---------- */
+.rt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+@media (max-width: 640px) { .rt-grid { grid-template-columns: 1fr; } }
+.rt-col { padding: 0.8rem 0.9rem; border-radius: 16px; background: var(--glass); border: 1px solid var(--edge); }
+.rt-head { font: 700 1.05rem 'Rubik', 'Heebo', sans-serif; margin-bottom: 0.6rem; }
+.rt-item { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.45rem 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.rt-item:first-of-type { border-top: none; }
+.rt-n { flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center; font: 700 0.75rem 'Rubik', sans-serif; background: rgba(255, 111, 181, 0.25); color: var(--pink); }
+.rt-item b { display: block; font: 600 0.9rem/1.35 'Rubik', 'Heebo', sans-serif; }
+.rt-item small, .rt-line small { display: block; font-size: 0.74rem; color: var(--muted); }
+.rt-line { padding: 0.35rem 0; }
+.rt-line b { font: 600 0.92rem 'Rubik', 'Heebo', sans-serif; }

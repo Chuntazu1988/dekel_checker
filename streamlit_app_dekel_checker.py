@@ -19,6 +19,7 @@ from playwright.sync_api import sync_playwright
 from PIL import Image, ImageOps, ImageFilter
 import easyocr
 
+from routine import plan_routine
 from hebrew import has_hebrew, ingredient_matches, ingredient_options
 from compat import (
     ACTIVE_NAMES,
@@ -1210,6 +1211,7 @@ def reset_all():
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
     st.session_state.ing_choices = []
+    st.session_state.routine = []
     st.session_state.product_lines = []
     st.session_state.product_pool = {}
     st.session_state.product_rejected = []
@@ -1267,6 +1269,8 @@ if "nf_pending" not in st.session_state:
     st.session_state.nf_pending = None
 if "ing_choices" not in st.session_state:
     st.session_state.ing_choices = []
+if "routine" not in st.session_state:
+    st.session_state.routine = []
 
 if st.session_state.celebrate_id:
     st.markdown(
@@ -1667,6 +1671,7 @@ def continue_search():
 
 CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
 TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
+TAB_ROUTINE = "🗓️ השגרה שלי"
 
 
 @st.cache_data(show_spinner=False)
@@ -1855,6 +1860,13 @@ def selected_product_banner():
         st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
     else:
         st.markdown(product_card_html(product), unsafe_allow_html=True)
+        if product.get("slug") and product["slug"] in routine_entries_by_slug():
+            if product["slug"] in st.session_state.routine:
+                st.caption("✔ המוצר כבר בשגרה שלך")
+            elif st.button("➕ הוסיפי לשגרה שלי", key="banner_add_routine"):
+                st.session_state.routine.append(product["slug"])
+                st.toast("המוצר נוסף לשגרה")
+                st.rerun()
     st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
 
 
@@ -2042,6 +2054,112 @@ def tab_compat():
     show_compatibility(names, st.session_state.results, product, st.session_state.product_meta)
 
 
+@st.cache_data(show_spinner=False)
+def routine_entries_by_slug():
+    return {entry["slug"]: entry for entry in (load_catalog_index() or {}).get("products", [])}
+
+
+@st.cache_data(show_spinner=False)
+def routine_options():
+    """תווית להשלמה אוטומטית -> slug, רק למוצרים שנסרקו בקטלוג."""
+    options = {}
+    for entry in (load_catalog_index() or {}).get("products", []):
+        brand = entry["company"].split("|")[-1].strip()
+        options.setdefault(f"{entry['name']} · {brand}" if brand else entry["name"], entry["slug"])
+    return options
+
+
+TIME_LABELS = {"MORNING": "בוקר", "EVENING": "ערב", "MORNING_AND_EVENING": "בוקר וערב"}
+
+
+def routine_slot_html(title, icon, items):
+    if not items:
+        return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div><div class="cx-empty">אין מוצרים.</div></div>'
+    rows = "".join(
+        f'<div class="rt-item"><span class="rt-n">{index}</span><div><b>{html.escape(entry["name"])}</b>'
+        f'<small>{html.escape(entry["company"].split("|")[-1].strip())} · '
+        f'{html.escape(" / ".join(categories_of(entry)))}</small></div></div>'
+        for index, entry in enumerate(items, 1)
+    )
+    return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div>{rows}</div>'
+
+
+def tab_routine():
+    how_box(
+        "🗓️", "השגרה שלי",
+        "מוסיפות את המוצרים שאת משתמשת בהם, ואנחנו מסדרות אותם לבוקר ולערב לפי סדר ההנחה, "
+        "ומתריעות אם יש מוצרים שלא כדאי לשלב ביניהם.",
+    )
+    by_slug = routine_entries_by_slug()
+    with st.container(border=True):
+        section("➕", "הוספת מוצר", "התחילי להקליד שם של מוצר מהקטלוג של דקל, בעברית או באנגלית")
+        options = routine_options()
+        choice = st.selectbox(
+            "מוצר לשגרה",
+            list(options),
+            index=None,
+            label_visibility="collapsed",
+            placeholder="למשל: סרווה, The Ordinary, סרום...",
+            key=f"routine_pick_{st.session_state.manual_key}",
+        )
+        if st.button("➕ הוסיפי לשגרה", key="routine_add"):
+            slug = options.get(choice)
+            if not slug:
+                st.warning("בחרי מוצר מהרשימה שנפתחת בהקלדה")
+            elif slug in st.session_state.routine:
+                st.info("המוצר כבר בשגרה")
+            else:
+                st.session_state.routine.append(slug)
+                st.rerun()
+
+    entries = [by_slug[slug] for slug in st.session_state.routine if slug in by_slug]
+    if not entries:
+        st.info("עוד אין מוצרים בשגרה. אפשר להוסיף מוצר כאן, או אחרי זיהוי מוצר בלשונית 'צילום המוצר עצמו'.")
+        return
+
+    with st.container(border=True):
+        section("🧴", "המוצרים שלי", f"{len(entries)} מוצרים")
+        for index, entry in enumerate(entries):
+            left, right = st.columns([5, 1])
+            time_label = TIME_LABELS.get(entry.get("time"), "בוקר או ערב")
+            left.markdown(
+                f'<div class="rt-line"><b>{html.escape(entry["name"])}</b>'
+                f'<small>{html.escape(entry["company"].split("|")[-1].strip())} · {time_label}'
+                f'{" · " + active_label(set(entry["actives"])) if entry.get("actives") else ""}</small></div>',
+                unsafe_allow_html=True,
+            )
+            if right.button("הסרה", key=f"routine_rm_{index}"):
+                st.session_state.routine.remove(entry["slug"])
+                st.rerun()
+
+    slots, conflicts, notes = plan_routine(entries, categories_of)
+    with st.container(border=True):
+        section("📅", "הסדר המומלץ", "מהנוזלי אל הסמיך, וקרם הגנה אחרון בבוקר")
+        st.markdown(
+            '<div class="rt-grid">'
+            + routine_slot_html("בוקר", "☀️", slots["AM"])
+            + routine_slot_html("ערב", "🌙", slots["PM"])
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+
+    with st.container(border=True):
+        section("⚠️", "בדיקת שילובים", "התנגשויות בין המוצרים שבאותה שגרה")
+        if conflicts:
+            for slot, first, second, found in conflicts:
+                when = "בבוקר" if slot == "AM" else "בערב"
+                st.warning(
+                    f"**{first['name']}** ו-**{second['name']}** {when}: "
+                    + " ".join(f"{title}. {reason}" for title, reason in found)
+                    + " כדאי להשתמש באחד מהם בזמן אחר ביום או בימים שונים."
+                )
+        else:
+            st.success("לא נמצאו התנגשויות בין הפעילים של המוצרים בשגרה.")
+        for icon, text in notes:
+            st.info(f"{icon} {text}")
+        st.caption("ההמלצות לפי הפעילים הבולטים בכל מוצר וכללי שילוב כלליים, ואינן ייעוץ רפואי.")
+
+
 def tab_coupons():
     with st.container(border=True):
         section("🎟️", "הטבות וקופונים", "הטבות פעילות באתר דקל, מעודכן אוטומטית")
@@ -2059,7 +2177,7 @@ def tab_coupons():
         st.caption("ההטבות נקראות מהאתר של דקל וייתכן שהן משתנות. כדאי לוודא את התנאים בעמוד ההטבה.")
 
 
-NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS]
+NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_COUPONS]
 if st.session_state.get("goto_tab") in NAV_TABS:
     st.session_state.nav = st.session_state.pop("goto_tab")
 if st.session_state.get("nav") not in NAV_TABS:
@@ -2070,6 +2188,7 @@ active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visib
     TAB_INGREDIENTS: tab_ingredients,
     TAB_PRODUCT: tab_product,
     TAB_COMPAT: tab_compat,
+    TAB_ROUTINE: tab_routine,
     TAB_COUPONS: tab_coupons,
 }[active_tab]()
 
