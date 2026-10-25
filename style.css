@@ -892,7 +892,7 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 /* ---------- כותרות סעיף וחלונות קופצים ---------- */
 .sec .ico { background: var(--grad-brand); border: none; box-shadow: 0 10px 22px rgba(var(--v-rgb), 0.4); color: #fff; }
 .sec .t { font-size: 1.2rem; }
-[data-testid="stDialog"] div[role="dialog"] {
+[data-testid="stDialog"] [role="dialog"] {
     border-radius: var(--r-xl) !important;
     border: 2px solid transparent !important;
     background-image: linear-gradient(rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.97)), var(--grad-brand) !important;
@@ -964,7 +964,7 @@ html[data-mode="dark"] .scanner, html[data-mode="dark"] .tile, html[data-mode="d
 html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button, html[data-mode="dark"] .stButton > button,
 html[data-mode="dark"] .stLinkButton > a { background: var(--glass-strong); color: var(--ink); }
 html[data-mode="dark"] [data-testid="stVerticalBlockBorderWrapper"] { background: rgba(30, 22, 52, 0.72) !important; }
-html[data-mode="dark"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; color: var(--ink); }
+html[data-mode="dark"] [data-testid="stDialog"] [role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; color: var(--ink); }
 html[data-mode="dark"] [data-testid="stTextInput"] input, html[data-mode="dark"] [data-testid="stTextArea"] textarea,
 html[data-mode="dark"] [data-baseweb="select"] > div { background: rgba(255, 255, 255, 0.08) !important; color: var(--ink); }
 html[data-mode="dark"] .ing-table td, html[data-mode="dark"] .rcard p, html[data-mode="dark"] .cp-desc, html[data-mode="dark"] .cx-reasons,
@@ -1218,7 +1218,7 @@ html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button[aria-che
 .personal { background: var(--glass-strong); border-inline-start: 3px solid var(--violet); }
 .tile .num { font-family: var(--serif); }
 .score-verdict { font-weight: 700; }
-[data-testid="stDialog"] div[role="dialog"] { border-radius: var(--r-xl) !important; background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; border: 1px solid transparent !important; animation: none; }
+[data-testid="stDialog"] [role="dialog"] { border-radius: var(--r-xl) !important; background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; border: 1px solid transparent !important; animation: none; }
 [data-testid="stDialog"] h2 { background: none; -webkit-text-fill-color: var(--ink); color: var(--ink); font-weight: 700; }
 [data-testid="stDialog"] > div { background: rgba(25, 14, 32, 0.50) !important; }
 .theme-fab { background: var(--ink); color: var(--gold-l); box-shadow: var(--sh-2); width: 2.8rem; height: 2.8rem; font-size: 1.15rem; }
@@ -1446,7 +1446,7 @@ html[data-mode="dark"] .st-key-go_list button, html[data-mode="dark"] .st-key-go
     border: 1px solid rgba(var(--p-rgb), 0.38) !important;
 }
 
-html[data-mode="dark"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; }
+html[data-mode="dark"] [data-testid="stDialog"] [role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; }
 html[data-mode="dark"] .ring::before { background: var(--bg); }
 
 
@@ -1509,7 +1509,7 @@ html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button[aria-che
 .personal { background: var(--glass-strong); border-inline-start: 3px solid var(--violet); }
 .tile .num { font-family: var(--serif); }
 .score-verdict { font-weight: 700; }
-[data-testid="stDialog"] div[role="dialog"] { border-radius: var(--r-xl) !important; background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; border: 1px solid transparent !important; animation: none; }
+[data-testid="stDialog"] [role="dialog"] { border-radius: var(--r-xl) !important; background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; border: 1px solid transparent !important; animation: none; }
 [data-testid="stDialog"] h2 { background: none; -webkit-text-fill-color: var(--ink); color: var(--ink); font-weight: 700; }
 [data-testid="stDialog"] > div { background: rgba(25, 14, 32, 0.50) !important; }
 .theme-fab { background: var(--ink); color: var(--gold-l); box-shadow: var(--sh-2); width: 2.8rem; height: 2.8rem; font-size: 1.15rem; }
@@ -1737,7 +1737,7 @@ html[data-mode="dark"] .st-key-go_list button, html[data-mode="dark"] .st-key-go
     border: 1px solid rgba(var(--p-rgb), 0.38) !important;
 }
 
-html[data-mode="dark"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; }
+html[data-mode="dark"] [data-testid="stDialog"] [role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; }
 html[data-mode="dark"] .ring::before { background: var(--bg); }
 
 
