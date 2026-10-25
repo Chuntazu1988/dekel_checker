@@ -1329,6 +1329,41 @@ def reset_all():
     st.session_state.manual_key += 1
 
 
+def render_gate():
+    """מסך כניסה: רקע שחור, הדמות של דקל עם תג Dekel Verified בגדול, וכפתור כניסה."""
+    try:
+        st.html(
+            f"<script>{(Path(__file__).parent / 'fx.js').read_text(encoding='utf-8')}</script>",
+            unsafe_allow_javascript=True,
+        )
+    except TypeError:
+        pass
+    stars = "".join(f'<i style="--x:{x}%;--y:{y}%;--d:{d}s"></i>' for x, y, d in (
+        (8, 14, 0), (18, 62, 1.2), (27, 28, 2.1), (36, 80, 0.6), (47, 10, 1.8), (58, 70, 2.6), (66, 22, 0.9),
+        (74, 86, 1.5), (84, 38, 2.3), (92, 12, 0.3), (12, 90, 1.9), (88, 66, 0.8), (52, 46, 2.9), (4, 44, 1.1),
+        (96, 90, 2.0), (30, 8, 2.7), (70, 6, 1.4), (62, 96, 0.5),
+    ))
+    mascot = f'<img class="gate-mascot" alt="Dekel Verified" src="data:image/webp;base64,{_mascot_b64}">' if _mascot_b64 else ""
+    st.markdown(
+        '<div class="gate"><div class="gate-dust">' + stars + '</div>'
+        '<div class="gate-stage"><div class="gate-rays"></div><div class="gate-glow"></div>'
+        '<i class="gate-ring"></i><i class="gate-ring r2"></i><i class="gate-ring r3"></i>' + mascot + '</div>'
+        '<div class="gate-title"><b>DEKEL</b> CHECKER</div>'
+        '<div class="gate-sub">בדיקת רכיבים · זיהוי מוצרים · התאמה אישית</div></div>',
+        unsafe_allow_html=True,
+    )
+    with st.container(key="enter"):
+        if st.button("כניסה לאתר", key="enter_btn"):
+            st.session_state.entered = True
+            st.rerun()
+
+
+if "entered" not in st.session_state:
+    st.session_state.entered = False
+if not st.session_state.entered:
+    render_gate()
+    st.stop()
+
 st.markdown(brand_html(), unsafe_allow_html=True)
 top_left, top_right, _ = st.columns([1, 1, 2])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")

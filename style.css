@@ -1267,3 +1267,61 @@ html[data-theme="night"] .st-key-bottomnav { background: rgba(20, 16, 26, 0.95);
 .warn-chips span { color: #6B4C14 !important; background: rgba(185, 138, 62, 0.16) !important; border: 1px solid rgba(185, 138, 62, 0.5) !important; }
 .warn-head { color: #6B4C14; }
 html[data-theme="night"] .warn-chips span, html[data-theme="night"] .warn-head { color: #E4C9A0 !important; }
+
+
+/* =====================================================================
+   מסך כניסה: שחור, הדמות של דקל עם התג בגדול, וכפתור כניסה
+   ===================================================================== */
+html:has(.gate), body:has(.gate), .stApp:has(.gate) { background: #000 !important; }
+.stApp:has(.gate) [data-testid="stHeader"], .stApp:has(.gate) [data-testid="stToolbar"] { display: none !important; }
+body:has(.gate) #fx-bg, body:has(.gate) .theme-fab, body:has(.gate) .theme-tip { display: none !important; }
+.stApp:has(.gate) .block-container { max-width: 760px; padding-top: 2vh; }
+.stApp:has(.gate) [data-testid="stElementContainer"] { animation: none; }
+.gate { position: relative; text-align: center; color: #F3EDE4; transition: transform 0.9s var(--ease), opacity 0.7s ease, filter 0.7s ease; }
+.gate.leaving { transform: scale(1.35); opacity: 0; filter: blur(6px); }
+.gate-dust { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.gate-dust i { position: absolute; left: var(--x); top: var(--y); width: 3px; height: 3px; border-radius: 50%; background: #E4C9A0; box-shadow: 0 0 8px 2px rgba(228, 201, 160, 0.6); opacity: 0; animation: dust 6s ease-in-out var(--d) infinite; }
+@keyframes dust { 0%, 100% { opacity: 0; transform: translateY(0) scale(0.6); } 50% { opacity: 0.9; transform: translateY(-14px) scale(1); } }
+.gate-stage { position: relative; width: min(80vw, 470px); aspect-ratio: 1; margin: 1vh auto 1rem; z-index: 1; }
+.gate-glow { position: absolute; inset: 4%; border-radius: 50%; background: radial-gradient(circle, rgba(201, 166, 107, 0.42), transparent 66%); filter: blur(28px); opacity: 0; animation: fadein 2s ease 0.4s forwards, glow2 6s ease-in-out 2s infinite; }
+@keyframes glow2 { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.12); opacity: 1; } }
+.gate-rays { position: absolute; inset: -38%; border-radius: 50%; opacity: 0;
+    background: repeating-conic-gradient(from 0deg, rgba(228, 201, 160, 0) 0 7deg, rgba(228, 201, 160, 0.13) 8deg 9deg);
+    -webkit-mask: radial-gradient(circle, #000 0 28%, transparent 68%); mask: radial-gradient(circle, #000 0 28%, transparent 68%);
+    animation: fadein 2.4s ease 0.8s forwards, orbit 120s linear infinite; }
+.gate-ring { position: absolute; inset: -3%; border-radius: 50%; border: 1px solid rgba(228, 201, 160, 0.55); opacity: 0; animation: ringout 6s ease-out 1.2s infinite; }
+.gate-ring.r2 { animation-delay: 3.2s; } .gate-ring.r3 { animation-delay: 5.2s; }
+@keyframes ringout { 0% { transform: scale(0.85); opacity: 0; } 20% { opacity: 0.6; } 100% { transform: scale(1.55); opacity: 0; } }
+.gate-mascot { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; animation: mascotin 2s cubic-bezier(0.2, 0.9, 0.25, 1) both, bobslow 8s ease-in-out 2s infinite; }
+@keyframes mascotin { 0% { opacity: 0; transform: scale(0.5) translateY(40px); filter: blur(22px) brightness(2.2); } 55% { opacity: 1; } 100% { opacity: 1; transform: none; filter: blur(0) brightness(1) drop-shadow(0 30px 60px rgba(0, 0, 0, 0.7)); } }
+@keyframes bobslow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.gate-title { font: 900 clamp(2rem, 7vw, 3.1rem) var(--serif); direction: ltr; color: #F3EDE4; animation: titlein 1.8s ease 1s both; }
+.gate-title b { color: var(--gold-l); }
+@keyframes titlein { from { opacity: 0; letter-spacing: 0.7em; filter: blur(6px); } to { opacity: 1; letter-spacing: 0.14em; filter: blur(0); } }
+.gate-sub { margin-top: 0.5rem; color: rgba(243, 237, 228, 0.62); letter-spacing: 0.1em; font-size: 0.92rem; animation: fadein 1.4s ease 1.8s both; }
+.st-key-enter { display: flex; justify-content: center; margin-top: 1.6rem; position: relative; z-index: 2; animation: fadein 1.4s ease 2.3s both !important; }
+.st-key-enter button {
+    min-width: 16rem; min-height: 3.5rem; border-radius: 999px !important; border: none !important;
+    background: linear-gradient(110deg, #E4C9A0 0%, #C9A66B 50%, #E4C9A0 100%) !important; background-size: 220% 100% !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 16px 44px rgba(201, 166, 107, 0.45); animation: gradshift 6s linear infinite, enterpulse 3s ease-in-out infinite;
+}
+.st-key-enter button p { font: 800 1.2rem var(--serif); letter-spacing: 0.12em; color: #1B1208 !important; }
+.st-key-enter button:hover { transform: translateY(-3px) scale(1.04); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 22px 56px rgba(201, 166, 107, 0.65); }
+@keyframes enterpulse { 0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 16px 44px rgba(201,166,107,0.38); } 50% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 16px 60px rgba(228,201,160,0.7); } }
+.gate-flash { position: fixed; inset: 0; z-index: 300000; pointer-events: none; background: radial-gradient(circle at 50% 62%, rgba(255, 244, 222, 0.95), rgba(228, 201, 160, 0.55) 35%, transparent 70%); opacity: 0; animation: flash 1.2s ease-out both; }
+@keyframes flash { 0% { opacity: 0; transform: scale(0.3); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(2.4); } }
+
+/* ---------- פתיחת האתר אחרי הכניסה ---------- */
+@keyframes heroreveal { from { opacity: 0; transform: translateY(34px) scale(0.95); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes cardrise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+@keyframes lightsweep { from { transform: translateX(-130%); } to { transform: translateX(130%); } }
+html.just-entered .hero { animation: heroreveal 1.5s var(--ease) 0.15s both; }
+html.just-entered .hero::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(105deg, transparent 38%, rgba(255, 238, 205, 0.32) 50%, transparent 62%); animation: lightsweep 1.8s ease 0.9s both; }
+html.just-entered .brand { animation: fadein 1.2s ease 0.1s both; }
+html.just-entered .ask { animation: cardrise 0.9s var(--ease) 0.7s both; }
+html.just-entered .st-key-go_list button { animation: cardrise 0.9s var(--ease) 0.9s both !important; }
+html.just-entered .st-key-go_product button { animation: cardrise 0.9s var(--ease) 1.05s both !important; }
+html.just-entered .st-key-go_search button { animation: cardrise 0.9s var(--ease) 1.2s both !important; }
+html.just-entered #fx-bg { animation: fadein 2.4s ease 0.4s both; }
+.st-key-enter, .st-key-enter [data-testid="stElementContainer"], .st-key-enter [data-testid="stButton"], .st-key-enter .stButton { display: flex !important; justify-content: center !important; width: 100% !important; }

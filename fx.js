@@ -597,24 +597,20 @@
     }).observe(document.body, { childList: true, subtree: true });
 })();
 
-// מסך פתיחה: לוגו שמופיע ודוהה, פעם אחת בכל ביקור
+// כניסה לאתר: הבזק זהב, המסך השחור נמוג והאתר נפתח בגל של כניסות
 (function () {
-    if (window.__dekelSplash) return;
-    window.__dekelSplash = true;
-    try { if (window.sessionStorage.getItem('dekel_splash')) return; window.sessionStorage.setItem('dekel_splash', '1'); } catch (e) { return; }
-    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
-    var splash = document.createElement('div');
-    splash.className = 'splash';
-    var inner = document.createElement('div');
-    inner.className = 'splash-inner';
-    var mark = document.createElement('div'); mark.className = 'splash-mark';
-    var name = document.createElement('div'); name.className = 'splash-name'; name.textContent = 'Dekel Checker';
-    var line = document.createElement('div'); line.className = 'splash-line';
-    line.appendChild(document.createElement('i'));
-    inner.appendChild(mark); inner.appendChild(name); inner.appendChild(line);
-    splash.appendChild(inner);
-    document.body.appendChild(splash);
-    setTimeout(function () { splash.classList.add('out'); }, 1500);
-    setTimeout(function () { splash.remove(); }, 2400);
+    if (window.__dekelEnter) return;
+    window.__dekelEnter = true;
+    document.addEventListener('click', function (e) {
+        var hit = e.target.closest && e.target.closest('.st-key-enter button');
+        if (!hit) return;
+        var flash = document.createElement('div');
+        flash.className = 'gate-flash';
+        document.body.appendChild(flash);
+        var gate = document.querySelector('.gate');
+        if (gate) gate.classList.add('leaving');
+        document.documentElement.classList.add('just-entered');
+        setTimeout(function () { flash.remove(); }, 1300);
+        setTimeout(function () { document.documentElement.classList.remove('just-entered'); }, 4200);
+    }, true);
 })();
