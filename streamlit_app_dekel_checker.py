@@ -505,6 +505,10 @@ def search_products(term):
     response = _with_logged_in_page(lambda page: page.evaluate(PRODUCTS_JS, term))
 
     items = response.get("data") if isinstance(response, dict) else None
+    if (isinstance(items, dict) and items.get("status") == 404) or (
+        isinstance(response, dict) and response.get("success") is False and isinstance(items, str)
+    ):
+        return []  # האתר מחזיר "No product suggestions found" כשאין שום תוצאה
     if not isinstance(items, list):
         raise RuntimeError("bad-response")
     return [_product_from_item(item) for item in items]
@@ -1203,6 +1207,7 @@ def reset_all():
     st.session_state.product_meta = None
     st.session_state.celebrate_id = None
     st.session_state.product_hits = None
+    st.session_state.nf_pending = None
     st.session_state.product_lines = []
     st.session_state.product_pool = {}
     st.session_state.product_rejected = []
@@ -1256,6 +1261,8 @@ if "product_obf_tried" not in st.session_state:
     st.session_state.product_obf_tried = False
 if "product_hits" not in st.session_state:
     st.session_state.product_hits = None
+if "nf_pending" not in st.session_state:
+    st.session_state.nf_pending = None
 
 if st.session_state.celebrate_id:
     st.markdown(
@@ -1274,30 +1281,9 @@ def section(icon, title, subtitle="", index=""):
     )
 
 
-@st.cache_resource(show_spinner=False)
-def _ocr_holder():
-    return {"reader": None, "lock": threading.Lock()}
-
-
-def _load_ocr_reader(holder):
-    with holder["lock"]:
-        if holder["reader"] is None:
-            holder["reader"] = easyocr.Reader(["en"], gpu=False)
-        return holder["reader"]
-
-
+@st.cache_resource(show_spinner="טוענת מנוע זיהוי טקסט (רק בפעם הראשונה)...")
 def get_ocr_reader():
-    return _load_ocr_reader(_ocr_holder())
-
-
-@st.cache_resource(show_spinner=False)
-def start_ocr_warmup():
-    """טוענת את מנוע ה-OCR ברקע כבר בפתיחת האתר, כדי שלא יחכו לו אחרי העלאת תמונה."""
-    threading.Thread(target=_load_ocr_reader, args=(_ocr_holder(),), daemon=True).start()
-    return True
-
-
-start_ocr_warmup()
+    return easyocr.Reader(["en"], gpu=False)
 
 
 @st.cache_data(show_spinner=False)
@@ -1679,6 +1665,60 @@ CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
 TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
 
 
+def _name_tokens(text):
+    return {t for t in re.findall(r"[a-z0-9\u0590-\u05ff]+", (text or "").lower()) if t not in STOPWORDS}
+
+
+def _product_text(product):
+    return f"{product.get('name', '')} {product.get('name2', '')} {product.get('company', '')}"
+
+
+def has_exact_match(term, products):
+    """האם יש מוצר בקטלוג שכל מילות החיפוש מופיעות בשמו או במותג שלו."""
+    wanted = _name_tokens(term)
+    return bool(wanted) and any(wanted <= _name_tokens(_product_text(p)) for p in products)
+
+
+def similar_products(term, found, limit=5):
+    """מוצרים דומים: מה שהאתר החזיר, ואם אין, התאמה לפי מילים משותפות מהאינדקס המקומי."""
+    if found:
+        return found[:limit]
+    wanted = _name_tokens(term)
+    scored = []
+    for entry in (load_catalog_index() or {}).get("products", []):
+        if not entry.get("verified"):
+            continue
+        overlap = len(wanted & _name_tokens(_product_text(entry)))
+        if overlap:
+            scored.append((overlap, entry))
+    scored.sort(key=lambda item: -item[0])
+    return [
+        {
+            "name": e["name"], "name2": e.get("name2", ""), "company": e["company"], "description": "",
+            "slug": e["slug"], "picture": "", "verified": True,
+        }
+        for _score, e in scored[:limit]
+    ]
+
+
+@st.dialog("המוצר לא נמצא בקטלוג")
+def not_found_dialog(term, similar):
+    st.warning(f"לא מצאתי בקטלוג של דקל מוצר בשם \"{term}\". ייתכן שהוא עדיין לא נבדק על ידי דקל.")
+    if similar:
+        st.caption("אלה מוצרים דומים שכן נמצאים בקטלוג:")
+        for index, product in enumerate(similar):
+            st.markdown(product_card_html(product), unsafe_allow_html=True)
+            if st.button("✔ זה המוצר שלי", key=f"nf_pick_{index}"):
+                choose_dekel_product(product)
+    else:
+        st.info("לא נמצאו מוצרים דומים. נסי לכתוב את שם המותג או חלק משם המוצר באנגלית.")
+
+
+def flag_not_found(term, found):
+    if not has_exact_match(term, found):
+        st.session_state.nf_pending = (term, similar_products(term, found))
+
+
 def search_by_typed_name(term):
     try:
         with st.spinner("מחפשת בקטלוג של דקל..."):
@@ -1691,6 +1731,7 @@ def search_by_typed_name(term):
     st.session_state.product_candidates = candidates
     st.session_state.product_source = "dekel"
     st.session_state.product_status = "ok" if candidates else "typed-none"
+    flag_not_found(term, found)
     st.rerun()
 
 
@@ -1918,6 +1959,7 @@ def tab_product():
                 try:
                     with st.spinner("מחפשת בקטלוג של דקל..."):
                         st.session_state.product_hits = search_products(product_term.strip())
+                    flag_not_found(product_term.strip(), st.session_state.product_hits)
                 except Exception:
                     st.session_state.product_hits = None
                     st.error("לא הצלחתי לבדוק את המוצר כרגע. נסי שוב בעוד רגע.")
@@ -1932,6 +1974,11 @@ def tab_product():
                 st.markdown(product_card_html(product), unsafe_allow_html=True)
                 if st.button("✔ זה המוצר שלי, טעני את הרכיבים", key=f"search_pick_{index}"):
                     choose_dekel_product(product)
+
+    if st.session_state.nf_pending:
+        term, similar = st.session_state.nf_pending
+        st.session_state.nf_pending = None
+        not_found_dialog(term, similar)
 
 
 def tab_compat():
