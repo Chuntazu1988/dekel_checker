@@ -964,8 +964,9 @@ def usage_groups_html(names, results):
         if not members:
             continue
         chips = "".join(
-            f'<span class="ugchip {EMOJI_CLASS.get(results[n]["emoji"], "other")} {grade_class(results[n])}">{html.escape(n)}</span>'
-            for n in members
+            f'<span class="ugchip {EMOJI_CLASS.get(results[n]["emoji"], "other")} {grade_class(results[n])}" '
+            f'style="--i:{index}">{html.escape(n)}</span>'
+            for index, n in enumerate(members)
         )
         blocks.append(
             f'<div class="ug"><div class="ug-head"><span class="ug-ico">{icon}</span>'
@@ -1563,12 +1564,13 @@ def show_result(ingredient):
     render_result(ingredient, st.session_state.results[ingredient])
 
 
-def scanner_html(done, total, recent):
+def scanner_html(done, total, recent, finished=False):
     percent = int(done / total * 100) if total else 0
-    chips = "".join(f'<span style="--i:{i}">{html.escape(name)}</span>' for i, name in enumerate(recent[-6:]))
+    chips = "".join(f'<span style="--i:{i}">{html.escape(name)}</span>' for i, name in enumerate(recent[-8:]))
+    title = "✓ הסריקה הושלמה" if finished else "🔬 סורקת את הרכיבים"
     return (
-        '<div class="scanner"><div class="sc-laser"></div>'
-        f'<div class="sc-head">🔬 סורקת את הרכיבים <b>{done}/{total}</b></div>'
+        f'<div class="scanner{" done" if finished else ""}"><div class="sc-laser"></div>'
+        f'<div class="sc-head">{title} <b>{done}/{total}</b></div>'
         f'<div class="sc-bar"><i style="width:{percent}%"></i></div>'
         f'<div class="sc-chips">{chips}</div></div>'
     )
@@ -1588,6 +1590,8 @@ def check_all(ingredients):
         panel.markdown(scanner_html(done, total, recent), unsafe_allow_html=True)
 
     st.session_state.results.update(search_many(todo, on_progress))
+    panel.markdown(scanner_html(len(todo), len(todo), recent, finished=True), unsafe_allow_html=True)
+    time.sleep(0.9)
     panel.empty()
     st.caption(f"נסרקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
 
@@ -1632,7 +1636,7 @@ def score_card_html(results):
     unrated = len(results) - rated
     extra = f" ל-{unrated} רכיבים אין דירוג באתר ולכן לא נכללו בציון." if unrated else ""
     return (
-        f'<div class="score-card {kind}">'
+        f'<div class="score-card {kind}" data-score="{score}">'
         f'<div class="ring" style="--score:{score}"><div class="val"><span class="num" data-t="{score}">{score}</span>'
         '<small>/100</small></div></div>'
         '<div class="score-text">'

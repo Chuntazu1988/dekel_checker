@@ -220,7 +220,7 @@
     }
 
     /* ---------- זוהר שעוקב אחרי העכבר + הטיה תלת-ממדית ---------- */
-    var GLOW = '.hero, .tile, .table-wrap, .rcard, [data-testid="stVerticalBlockBorderWrapper"]';
+    var GLOW = '.hero, .tile, .table-wrap, .rcard, .pcard, .kp, .cp-card, .ug, .personal, .rt-col, .score-card, .g-card, [class*="st-key-go_"] button, [data-testid="stVerticalBlockBorderWrapper"]';
     var TILT = '.hero, .tile';
     var tilted = null;
 
@@ -489,7 +489,25 @@
         }
     }
 
+    function goldBurst() {
+        if (doc.querySelector('.celebrate')) { setTimeout(goldBurst, 700); return; }
+        var overlay = makeEl('div', 'cel-mini');
+        doc.body.appendChild(overlay);
+        launchConfetti(overlay);
+        setTimeout(function () { overlay.remove(); }, 4200);
+    }
+
+    var burstTries = 0;
+    function scoreFx() {
+        var card = doc.querySelector('.score-card[data-score]:not([data-fx])');
+        if (!card) return;
+        card.setAttribute('data-fx', '1');
+        var score = parseInt(card.getAttribute('data-score'), 10) || 0;
+        if (score >= 85 && !reduce) setTimeout(goldBurst, 900);
+    }
+
     function scan() {
+        scoreFx();
         flagAlerts();
         var els = doc.querySelectorAll('.num[data-t]:not([data-done])');
         for (var i = 0; i < els.length; i++) countUp(els[i]);

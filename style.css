@@ -1325,3 +1325,27 @@ html.just-entered .st-key-go_product button { animation: cardrise 0.9s var(--eas
 html.just-entered .st-key-go_search button { animation: cardrise 0.9s var(--ease) 1.2s both !important; }
 html.just-entered #fx-bg { animation: fadein 2.4s ease 0.4s both; }
 .st-key-enter, .st-key-enter [data-testid="stElementContainer"], .st-key-enter [data-testid="stButton"], .st-key-enter .stButton { display: flex !important; justify-content: center !important; width: 100% !important; }
+
+
+/* ---------- העשרה: ציפים של רכיבים, סיום סריקה, ברק בריחוף ---------- */
+.ugchip { animation: pop 0.55s var(--ease) both; animation-delay: calc(var(--i, 0) * 50ms + 200ms); }
+.scanner.done .sc-laser { display: none; }
+.scanner.done .sc-head { color: var(--aqua-d); }
+.scanner.done .sc-bar i { animation: none; background: var(--aqua); }
+.scanner.done .sc-chips span { animation: flyup 0.9s cubic-bezier(0.5, 0, 0.9, 0.4) forwards; animation-delay: calc(var(--i) * 70ms); }
+@keyframes flyup { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-46px) scale(0.6); } }
+.cel-mini { position: fixed; inset: 0; z-index: 100001; pointer-events: none; }
+/* זוהר שעוקב אחרי העכבר + ברק מתעופף על כרטיסים */
+.pcard, .kp, .cp-card, .ug, .personal, .rt-col, .score-card, .g-card {
+    background-image: radial-gradient(320px circle at var(--mx, 50%) var(--my, -40%), rgba(var(--p-rgb), 0.12), transparent 60%);
+    position: relative; overflow: hidden; transition: transform 0.35s var(--ease), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.kp:hover, .cp-card:hover, .ug:hover, .rt-col:hover, .g-card:hover { transform: translateY(-3px); box-shadow: var(--sh-2); border-color: rgba(201, 166, 107, 0.7); }
+.kp::after, .cp-card::after, .ug::after, .rt-col::after, .g-card::after, .score-card::after, .pcard::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 38%; left: 0; pointer-events: none; opacity: 0;
+    background: linear-gradient(105deg, transparent, rgba(255, 244, 222, 0.5), transparent); transform: translateX(-140%) skewX(-18deg);
+}
+.kp:hover::after, .cp-card:hover::after, .ug:hover::after, .rt-col:hover::after, .g-card:hover::after, .score-card:hover::after, .pcard:hover::after { animation: cardsheen 0.9s ease both; }
+@keyframes cardsheen { 0% { opacity: 0; transform: translateX(-140%) skewX(-18deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateX(380%) skewX(-18deg); } }
+@media (prefers-reduced-motion: reduce) { .ugchip, .scanner.done .sc-chips span { animation: none; } }
+.stButton > button[data-testid="stBaseButton-primary"], .stButton > button[data-testid="stBaseButton-primary"] p, .stButton > button[data-testid="stBaseButton-primary"] span { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF; text-shadow: 0 1px 6px rgba(30, 10, 40, 0.35); filter: none; }
