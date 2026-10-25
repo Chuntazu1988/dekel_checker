@@ -1183,7 +1183,7 @@ HERO_HTML = """
     <div class="scan"></div>
     <div class="badge"><i></i>SKINCARE LAB</div>
     <h1>בדיקת רכיבים</h1>
-    <p>מצלמים את רשימת הרכיבים, והמערכת סורקת כל רכיב ומראה מה באמת יש במוצר.</p>
+    <p>בחרי איך להתחיל, והמערכת תסרוק כל רכיב ותסביר מה באמת יש במוצר.</p>
     <div class="steps">
         <span><b>01</b> צילום</span><i class="arr">←</i>
         <span><b>02</b> סריקה</span><i class="arr">←</i>
@@ -1208,6 +1208,7 @@ def reset_all():
     st.session_state.selected_product = None
     st.session_state.product_meta = None
     st.session_state.celebrate_id = None
+    st.session_state.nv_product = None
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
     st.session_state.ing_choices = []
@@ -1226,7 +1227,6 @@ top_left, top_right, _ = st.columns([1, 1, 2])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
 top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
 
-st.markdown(HERO_HTML, unsafe_allow_html=True)
 
 try:
     st.html(
@@ -1254,6 +1254,10 @@ if "product_meta" not in st.session_state:
     st.session_state.product_meta = None
 if "celebrate_id" not in st.session_state:
     st.session_state.celebrate_id = None
+if "nv_product" not in st.session_state:
+    st.session_state.nv_product = None
+if "celebrate_kind" not in st.session_state:
+    st.session_state.celebrate_kind = "yes"
 if "product_lines" not in st.session_state:
     st.session_state.product_lines = []
 if "product_pool" not in st.session_state:
@@ -1270,6 +1274,8 @@ if "nf_pending" not in st.session_state:
     st.session_state.nf_pending = None
 if "ing_choices" not in st.session_state:
     st.session_state.ing_choices = []
+if "auto_scan" not in st.session_state:
+    st.session_state.auto_scan = False
 if "history" not in st.session_state:
     st.session_state.history = []
 if "photo_thumb" not in st.session_state:
@@ -1289,7 +1295,8 @@ def save_routine():
 
 if st.session_state.celebrate_id:
     st.markdown(
-        f'<div class="celebrate-marker" data-id="{st.session_state.celebrate_id}"></div>',
+        f'<div class="celebrate-marker" data-id="{st.session_state.celebrate_id}" '
+        f'data-kind="{st.session_state.celebrate_kind}"></div>',
         unsafe_allow_html=True,
     )
 
@@ -1402,18 +1409,32 @@ def show_result(ingredient):
     render_result(ingredient, st.session_state.results[ingredient])
 
 
+def scanner_html(done, total, recent):
+    percent = int(done / total * 100) if total else 0
+    chips = "".join(f'<span style="--i:{i}">{html.escape(name)}</span>' for i, name in enumerate(recent[-6:]))
+    return (
+        '<div class="scanner"><div class="sc-laser"></div>'
+        f'<div class="sc-head">🔬 סורקת את הרכיבים <b>{done}/{total}</b></div>'
+        f'<div class="sc-bar"><i style="width:{percent}%"></i></div>'
+        f'<div class="sc-chips">{chips}</div></div>'
+    )
+
+
 def check_all(ingredients):
     todo = [ing for ing in ingredients if ing not in st.session_state.results]
     if not todo:
         return
     started = time.time()
-    bar = st.progress(0.0, text="מתחילה סריקה...")
+    panel = st.empty()
+    panel.markdown(scanner_html(0, len(todo), ["מתחילה..."]), unsafe_allow_html=True)
+    recent = []
 
     def on_progress(done, total, name):
-        bar.progress(done / total, text=f"{done}/{total} · {name}")
+        recent.append(name)
+        panel.markdown(scanner_html(done, total, recent), unsafe_allow_html=True)
 
     st.session_state.results.update(search_many(todo, on_progress))
-    bar.empty()
+    panel.empty()
     st.caption(f"נסרקו {len(todo)} רכיבים תוך {time.time() - started:.0f} שניות")
 
 
@@ -1487,6 +1508,30 @@ def warnings_card_html(checked, results):
     return '<div class="warn-card"><div class="warn-head">⚡ אזהרות ברמת המוצר</div>' + "".join(rows) + "</div>"
 
 
+def key_points_html(checked, results_map, meta):
+    """כמה משפטים פשוטים בראש התוצאה, לפני כל הפירוט."""
+    results = [results_map[name] for name in checked]
+    actives = detect_actives(checked, results_map, (meta or {}).get("key_ingredients", ()))
+    icon, label, _source = usage_time(checked, results_map, actives, meta)
+    good = sum(r["emoji"] == "🟢" for r in results)
+    points = [("🧪", f"{good} מתוך {len(results)} רכיבים מדורגים טוב"), (icon, label)]
+
+    advice = mixing_advice(actives)
+    if advice:
+        points.append(("⚠️", advice[0][0]))
+    flags = {flag for r in results for flag in r.get("flags", [])}
+    if "pregnancy" in flags:
+        points.append(("🤰", "יש רכיבים שלא מומלצים בהיריון"))
+    elif "sun" in flags:
+        points.append(("☀️", "יש רכיבים שמגבירים רגישות לשמש, חשוב קרם הגנה"))
+
+    items = "".join(
+        f'<div class="kp" style="--i:{index}"><span>{point_icon}</span><b>{html.escape(text)}</b></div>'
+        for index, (point_icon, text) in enumerate(points[:4])
+    )
+    return f'<div class="kps">{items}</div>'
+
+
 def show_summary(ingredients):
     checked = [ing for ing in ingredients if ing in st.session_state.results]
     if not checked:
@@ -1498,8 +1543,12 @@ def show_summary(ingredients):
     bad = sum(r["emoji"] == "🔴" for r in results)
     other = len(results) - good - caution - bad
 
-    section("📊", "תוצאות הסריקה", f"{len(results)} רכיבים נסרקו", "03")
-    for card in (score_card_html(results), warnings_card_html(checked, results)):
+    section("📊", "התוצאה", f"{len(results)} רכיבים נסרקו")
+    for card in (
+        score_card_html(results),
+        key_points_html(checked, st.session_state.results, st.session_state.product_meta),
+        warnings_card_html(checked, results),
+    ):
         if card:
             st.markdown(card, unsafe_allow_html=True)
     st.markdown(
@@ -1521,14 +1570,14 @@ def show_summary(ingredients):
         )
         st.markdown(f'<div class="legend">הירוקים לפי דרגה: {pills}</div>', unsafe_allow_html=True)
 
-    section("🗂️", "קבוצות לפי שימוש", "מה כל רכיב עושה במוצר")
-    st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
+    with st.expander("🧭 מדריך שימוש מלא: מתי, באיזו תדירות ועם מה לא לשלב"):
+        st.markdown(
+            guide_html(checked, st.session_state.results, st.session_state.product_meta),
+            unsafe_allow_html=True,
+        )
 
-    section("🧭", "מדריך שימוש", "מתי, באיזו תדירות ועם מה לא כדאי לשלב")
-    st.markdown(
-        guide_html(checked, st.session_state.results, st.session_state.product_meta),
-        unsafe_allow_html=True,
-    )
+    with st.expander("🗂️ קבוצות לפי שימוש: מה כל רכיב עושה במוצר"):
+        st.markdown(usage_groups_html(checked, st.session_state.results), unsafe_allow_html=True)
 
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
@@ -1539,12 +1588,13 @@ def show_summary(ingredients):
         "</tr>"
         for index, (ing, r) in enumerate((ing, st.session_state.results[ing]) for ing in checked)
     )
-    st.markdown(
-        '<div class="table-wrap"><table class="ing-table">'
-        "<thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>"
-        f"<tbody>{rows}</tbody></table></div>",
-        unsafe_allow_html=True,
-    )
+    with st.expander("🧾 טבלת הרכיבים המלאה"):
+        st.markdown(
+            '<div class="table-wrap"><table class="ing-table">'
+            "<thead><tr><th>רכיב</th><th>דירוג</th><th>תפקיד</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></div>",
+            unsafe_allow_html=True,
+        )
 
     flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
     if flagged:
@@ -1690,6 +1740,7 @@ CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
 TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
 TAB_ROUTINE = "🗓️ השגרה שלי"
 TAB_HISTORY = "🕘 היסטוריה"
+TAB_HOME = "🏠 בית"
 
 
 @st.cache_data(show_spinner=False)
@@ -1816,6 +1867,15 @@ def add_history(kind, key, title, thumb, product=None, meta=None):
 
 
 def choose_dekel_product(product, from_photo=False):
+    if not product.get("verified"):
+        # אין רשימת רכיבים מדקל למוצר שלא מאושר: מציגות אזהרה עם אנימציה שלילית
+        st.session_state.nv_product = product
+        st.session_state.product_candidates = []
+        st.session_state.product_status = None
+        st.session_state.product_hits = None
+        st.session_state.celebrate_kind = "no"
+        st.session_state.celebrate_id = int(time.time() * 1000)
+        st.rerun()
     try:
         with st.spinner("מביאה את הרכיבים והדירוגים מדקל..."):
             names, results, meta = load_product_ingredients(product["slug"])
@@ -1832,8 +1892,9 @@ def choose_dekel_product(product, from_photo=False):
     st.session_state.product_hits = None
     thumb = (st.session_state.photo_thumb if from_photo else None) or catalog_thumb(product)
     add_history("product", f"p:{product.get('slug') or product['name']}", product["name"], thumb, product, meta)
-    if product.get("verified"):
-        st.session_state.celebrate_id = int(time.time() * 1000)
+    st.session_state.auto_scan = True
+    st.session_state.celebrate_kind = "yes" if product.get("verified") else "no"
+    st.session_state.celebrate_id = int(time.time() * 1000)
     st.session_state.goto_tab = TAB_INGREDIENTS
     st.rerun()
 
@@ -1849,6 +1910,9 @@ def choose_obf_product(candidate):
         "product", f"o:{candidate['brand']}:{candidate['name']}", candidate["name"] or "מוצר",
         st.session_state.photo_thumb, st.session_state.selected_product, None,
     )
+    st.session_state.auto_scan = True
+    st.session_state.celebrate_kind = "no"
+    st.session_state.celebrate_id = int(time.time() * 1000)
     st.session_state.product_candidates = []
     st.session_state.product_status = None
     st.session_state.goto_tab = TAB_INGREDIENTS
@@ -1971,6 +2035,7 @@ def tab_ingredients():
                 st.session_state.ocr_ingredients_text = "\n".join(ingredients)
                 st.session_state.selected_product = None
                 st.session_state.product_meta = None
+                st.session_state.auto_scan = True
                 if ingredients:
                     add_history(
                         "ingredients", "i:" + "|".join(ingredients[:6]).lower(),
@@ -1991,6 +2056,9 @@ def tab_ingredients():
 
             ingredient_list = split_ingredients(st.session_state.ocr_ingredients_text)
 
+            if st.session_state.auto_scan:
+                st.session_state.auto_scan = False
+                check_all(ingredient_list)
             if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
                 check_all(ingredient_list)
 
@@ -2044,6 +2112,20 @@ def tab_ingredients():
 
 
 def tab_product():
+    if st.session_state.nv_product:
+        product = st.session_state.nv_product
+        st.markdown(product_card_html(product), unsafe_allow_html=True)
+        st.warning(
+            "🚫 המוצר הזה לא Dekel Verified, ולכן אין לנו ממנו רשימת רכיבים ודירוגים מדקל. "
+            "אפשר לצלם את רשימת הרכיבים שבגב האריזה ולבדוק אותם בלשונית 'צילום רשימת רכיבים'."
+        )
+        left, right = st.columns(2)
+        if left.button("📋 צלמי את רשימת הרכיבים", key="nv_to_list"):
+            st.session_state.nv_product = None
+            go_to(TAB_INGREDIENTS)
+        if right.button("🔎 חפשי מוצר אחר", key="nv_clear"):
+            st.session_state.nv_product = None
+            st.rerun()
     how_box(
         "📦", "צילום של המוצר עצמו",
         "מצלמות את חזית האריזה (שם ומותג), והמערכת מזהה את המוצר בקטלוג של דקל וטוענת את הרכיבים והדירוגים שלו משם. "
@@ -2272,6 +2354,45 @@ def tab_history():
             st.rerun()
 
 
+def go_to(tab):
+    st.session_state.goto_tab = tab
+    st.rerun()
+
+
+SAMPLE_SLUG = "the-ordinary-glycolic-acid-7-exfoliating-toner"
+
+
+def tab_home():
+    st.markdown(HERO_HTML, unsafe_allow_html=True)
+    st.markdown('<div class="ask">מה את רוצה לבדוק?</div>', unsafe_allow_html=True)
+    first, second, third = st.columns(3)
+    if first.button("**צילום רשימת רכיבים**  \nהטקסט הקטן בגב האריזה", key="go_list", use_container_width=True):
+        go_to(TAB_INGREDIENTS)
+    if second.button("**צילום המוצר עצמו**  \nמזהים אותו בקטלוג של דקל", key="go_product", use_container_width=True):
+        go_to(TAB_PRODUCT)
+    if third.button("**חיפוש לפי שם**  \nמוצר או רכיב, בעברית או באנגלית", key="go_search", use_container_width=True):
+        go_to(TAB_PRODUCT)
+
+    st.markdown('<div class="ask small">או הרבה יותר מזה</div>', unsafe_allow_html=True)
+    cols = st.columns(4)
+    for col, (label, tab, key) in zip(cols, (
+        ("🗓️ השגרה שלי", TAB_ROUTINE, "home_routine"),
+        ("🕘 היסטוריה", TAB_HISTORY, "home_history"),
+        ("🤝 שילובים", TAB_COMPAT, "home_compat"),
+        ("🎟️ קופונים", TAB_COUPONS, "home_coupons"),
+    )):
+        if col.button(label, key=key, use_container_width=True):
+            go_to(tab)
+
+    entry = routine_entries_by_slug().get(SAMPLE_SLUG)
+    if entry:
+        if st.button("✨ רוצה לראות איך זה עובד? נסי עם מוצר לדוגמה", key="home_sample", use_container_width=True):
+            choose_dekel_product({
+                "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"],
+                "description": "", "slug": entry["slug"], "picture": "", "verified": True,
+            })
+
+
 def tab_coupons():
     with st.container(border=True):
         section("🎟️", "הטבות וקופונים", "הטבות פעילות באתר דקל, מעודכן אוטומטית")
@@ -2289,14 +2410,19 @@ def tab_coupons():
         st.caption("ההטבות נקראות מהאתר של דקל וייתכן שהן משתנות. כדאי לוודא את התנאים בעמוד ההטבה.")
 
 
-NAV_TABS = [TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_HISTORY, TAB_COUPONS]
+NAV_TABS = [TAB_HOME, TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_HISTORY, TAB_COUPONS]
 if st.session_state.get("goto_tab") in NAV_TABS:
     st.session_state.nav = st.session_state.pop("goto_tab")
 if st.session_state.get("nav") not in NAV_TABS:
-    st.session_state.nav = TAB_INGREDIENTS
+    st.session_state.nav = TAB_HOME
 
-active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visibility="collapsed") or TAB_INGREDIENTS
+active_tab = st.session_state.nav
+if active_tab != TAB_HOME:
+    active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visibility="collapsed") or active_tab
+    if active_tab == TAB_HOME:
+        st.rerun()
 {
+    TAB_HOME: tab_home,
     TAB_INGREDIENTS: tab_ingredients,
     TAB_PRODUCT: tab_product,
     TAB_COMPAT: tab_compat,

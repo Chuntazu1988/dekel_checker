@@ -736,3 +736,66 @@ blockquote { border-left: 0 !important; border-right: 2px solid var(--pink); pad
 .dv-seal { box-shadow: 0 6px 18px rgba(47, 167, 147, 0.35); }
 .pcard.verified { border-color: rgba(47, 167, 147, 0.5); }
 .warn-card, .score-card { box-shadow: 0 14px 40px rgba(var(--shadow), 0.14); }
+
+/* ---------- מסך פתיחה ---------- */
+.ask { text-align: center; margin: 1.1rem 0 0.8rem; font: 700 1.5rem 'Rubik', 'Heebo', sans-serif; background: linear-gradient(100deg, #E0568F, #9B7BD6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.ask.small { font-size: 1rem; margin-top: 1.6rem; opacity: 0.85; }
+.st-key-go_list button, .st-key-go_product button, .st-key-go_search button {
+    min-height: 10.5rem; border-radius: 26px; padding: 1.2rem 0.8rem; white-space: normal;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 238, 246, 0.85));
+    border: 1.5px solid rgba(224, 86, 143, 0.28);
+    box-shadow: 0 18px 44px rgba(var(--shadow), 0.20);
+    animation: float 6s ease-in-out infinite;
+}
+.st-key-go_product button { animation-delay: -2s; border-color: rgba(155, 123, 214, 0.35); }
+.st-key-go_search button { animation-delay: -4s; border-color: rgba(47, 167, 147, 0.35); }
+.st-key-go_list button:hover, .st-key-go_product button:hover, .st-key-go_search button:hover {
+    transform: translateY(-8px) scale(1.03); border-color: var(--pink);
+    box-shadow: 0 28px 60px rgba(224, 86, 143, 0.30);
+}
+.st-key-go_list button p, .st-key-go_product button p, .st-key-go_search button p { text-align: center; line-height: 1.7; font-size: 0.92rem; color: var(--muted); margin: 0; }
+.st-key-go_list button p strong, .st-key-go_product button p strong, .st-key-go_search button p strong { display: block; font: 700 1.12rem 'Rubik', 'Heebo', sans-serif; color: var(--ink); }
+.st-key-go_list button, .st-key-go_product button, .st-key-go_search button { flex-direction: column; }
+.st-key-go_list button::before, .st-key-go_product button::before, .st-key-go_search button::before { display: block; font-size: 2.8rem; line-height: 1.2; margin-bottom: 0.3rem; }
+.st-key-go_list button::before { content: "📋"; }
+.st-key-go_product button::before { content: "📦"; }
+.st-key-go_search button::before { content: "⌨️"; }
+.st-key-home_sample button { background: linear-gradient(120deg, rgba(240, 138, 176, 0.25), rgba(178, 140, 240, 0.25)); border: 1.5px dashed rgba(224, 86, 143, 0.5); margin-top: 0.8rem; }
+
+/* ---------- אנימציית סריקה ---------- */
+.scanner { position: relative; overflow: hidden; border-radius: 22px; padding: 1.1rem 1.2rem; margin: 0.5rem 0 1rem; background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(240, 232, 252, 0.9)); border: 1px solid var(--edge); box-shadow: 0 18px 44px rgba(var(--shadow), 0.2); }
+.sc-laser { position: absolute; left: 0; right: 0; height: 3px; top: 0; background: linear-gradient(90deg, transparent, var(--pink), var(--violet), transparent); box-shadow: 0 0 24px 6px rgba(224, 86, 143, 0.4); animation: scan 2.2s ease-in-out infinite; }
+.sc-head { font: 600 1rem 'Rubik', 'Heebo', sans-serif; margin-bottom: 0.7rem; }
+.sc-head b { float: left; color: var(--pink-d); direction: ltr; }
+.sc-bar { height: 8px; border-radius: 999px; background: rgba(130, 85, 120, 0.12); overflow: hidden; }
+.sc-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #F08AB0, #B28CF0, #6ED7C3); background-size: 200% 100%; animation: gradshift 2s linear infinite; transition: width 0.4s ease; }
+.sc-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.8rem; min-height: 2rem; }
+.sc-chips span { padding: 0.15rem 0.8rem; border-radius: 999px; font-size: 0.8rem; direction: ltr; background: rgba(155, 123, 214, 0.14); border: 1px solid rgba(155, 123, 214, 0.35); animation: pop 0.5s ease both; animation-delay: calc(var(--i) * 70ms); }
+
+/* ---------- נקודות מפתח בראש התוצאה ---------- */
+.kps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; margin: 0.2rem 0 0.9rem; }
+@media (max-width: 640px) { .kps { grid-template-columns: 1fr; } }
+.kp { display: flex; gap: 0.7rem; align-items: center; padding: 0.7rem 0.9rem; border-radius: 16px; background: rgba(255, 255, 255, 0.85); border: 1px solid var(--edge); animation: pop 0.6s ease both; animation-delay: calc(var(--i) * 90ms + 200ms); box-shadow: 0 8px 22px rgba(var(--shadow), 0.10); }
+.kp span { font-size: 1.5rem; }
+.kp b { font: 600 0.92rem/1.45 'Rubik', 'Heebo', sans-serif; }
+
+/* כותרת קטנה במסכים הפנימיים */
+.slimhead { text-align: center; font: 600 0.8rem 'Rubik', sans-serif; letter-spacing: 0.22em; color: var(--pink-d); margin: 0.2rem 0 0.8rem; }
+
+
+/* ---------- אנימציה שלילית: מוצר שאינו Dekel Verified ---------- */
+@keyframes sadshake { 0%, 100% { transform: translateX(0) rotate(0); } 15% { transform: translateX(-14px) rotate(-3deg); } 30% { transform: translateX(12px) rotate(3deg); } 45% { transform: translateX(-9px) rotate(-2deg); } 60% { transform: translateX(7px) rotate(2deg); } 80% { transform: translateX(-3px); } }
+@keyframes fall { 0% { transform: translateY(-12vh) rotate(0); opacity: 0; } 12% { opacity: 0.95; } 100% { transform: translateY(108vh) rotate(40deg); opacity: 0; } }
+@keyframes stampin { 0% { opacity: 0; transform: translate(-50%, -50%) scale(2.6) rotate(-18deg); } 60% { opacity: 1; transform: translate(-50%, -50%) scale(0.92) rotate(-8deg); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-8deg); } }
+.celebrate.no .cel-glow { background: radial-gradient(circle at 50% 50%, rgba(224, 82, 107, 0.34), rgba(90, 60, 90, 0.42) 40%, rgba(25, 14, 28, 0.78) 80%); }
+.celebrate.no .cel-logo { filter: grayscale(0.9) brightness(0.88) drop-shadow(0 20px 50px rgba(224, 82, 107, 0.55)); }
+.celebrate.no.in .cel-logo { animation: sadshake 0.9s ease-in-out 0.7s 2; }
+.cel-drop { position: absolute; top: 0; font-style: normal; opacity: 0; color: #fff; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)); }
+.celebrate.no.in .cel-drop { animation-name: fall; animation-timing-function: linear; animation-fill-mode: both; }
+.cel-stamp {
+    position: absolute; left: 50%; top: 60%; padding: 0.35rem 1.4rem; border-radius: 14px; opacity: 0;
+    font: 800 clamp(1.5rem, 6.5vmin, 3rem) 'Rubik', 'Heebo', sans-serif; letter-spacing: 0.04em; color: #E0526B;
+    background: rgba(255, 255, 255, 0.94); border: 5px solid #E0526B; white-space: nowrap;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+.celebrate.no.in .cel-stamp { animation: stampin 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) 0.55s both; }

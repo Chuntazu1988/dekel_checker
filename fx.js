@@ -308,9 +308,21 @@
         if (!id || celebrated[id]) return;
         celebrated[id] = true;
 
-        var overlay = makeEl('div', 'celebrate');
+        var negative = marker.getAttribute('data-kind') === 'no';
+        var overlay = makeEl('div', negative ? 'celebrate no' : 'celebrate');
         overlay.appendChild(makeEl('div', 'cel-glow'));
-        for (var i = 0; i < 14; i++) {
+        if (negative) {
+            var DROPS = ['✖', '💔', '☁️', '✖'];
+            for (var d = 0; d < 26; d++) {
+                var drop = makeEl('i', 'cel-drop', DROPS[d % DROPS.length]);
+                drop.style.left = (Math.random() * 96 + 2).toFixed(1) + '%';
+                drop.style.animationDelay = (Math.random() * 2.2).toFixed(2) + 's';
+                drop.style.animationDuration = (2.2 + Math.random() * 1.6).toFixed(2) + 's';
+                drop.style.fontSize = (1.1 + Math.random() * 1.6).toFixed(2) + 'rem';
+                overlay.appendChild(drop);
+            }
+        }
+        for (var i = 0; i < (negative ? 0 : 14); i++) {
             var spark = makeEl('i', 'cel-spark', SPARKS[i % SPARKS.length]);
             var angle = (i / 14) * Math.PI * 2;
             var dist = 30 + Math.random() * 16;
@@ -320,8 +332,9 @@
             overlay.appendChild(spark);
         }
         overlay.appendChild(makeEl('div', 'cel-logo'));
+        if (negative) overlay.appendChild(makeEl('div', 'cel-stamp', 'NOT VERIFIED'));
         doc.body.appendChild(overlay);
-        launchConfetti(overlay);
+        if (!negative) launchConfetti(overlay);
 
         requestAnimationFrame(function () {
             requestAnimationFrame(function () { overlay.classList.add('in'); });
