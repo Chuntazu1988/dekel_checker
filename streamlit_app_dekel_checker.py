@@ -52,8 +52,8 @@ def grade_class(result):
     return GRADE_CLASS.get(result.get("rating", ""), "")
 
 st.markdown(
-    f"<style>:root{{--logo:url('{_logo_data_uri()}')}}"
-    f"{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
+    f"<style>{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}"
+    f"\n:root{{--logo:url('{_logo_data_uri()}')}}</style>",
     unsafe_allow_html=True,
 )
 
@@ -676,12 +676,27 @@ def history_alerts():
     return alerts
 
 
+NAV_ICONS = {
+    "home": ":material/home:", "list": ":material/checklist:", "product": ":material/photo_camera:",
+    "compat": ":material/handshake:", "routine": ":material/calendar_month:", "history": ":material/history:",
+    "coupons": ":material/local_activity:", "profile": ":material/face:", "sample": ":material/auto_awesome:",
+    "more": ":material/more_horiz:",
+}
+
+
 def nav_label(tab):
+    names = {
+        TAB_HOME: f"{NAV_ICONS['home']} בית", TAB_INGREDIENTS: f"{NAV_ICONS['list']} רשימת רכיבים",
+        TAB_PRODUCT: f"{NAV_ICONS['product']} צילום המוצר", TAB_COMPAT: f"{NAV_ICONS['compat']} שילובים",
+        TAB_ROUTINE: f"{NAV_ICONS['routine']} השגרה שלי", TAB_HISTORY: f"{NAV_ICONS['history']} היסטוריה",
+        TAB_COUPONS: f"{NAV_ICONS['coupons']} קופונים",
+    }
+    label = names.get(tab, tab)
     if tab == TAB_HISTORY and st.session_state.history:
         count = len(history_alerts())
         if count:
-            return f"{tab} 🔔{count}"
-    return tab
+            return f"{label} 🔔{count}"
+    return label
 
 
 def coupon_card_html(coupon):
@@ -1472,11 +1487,25 @@ if st.session_state.celebrate_id:
     )
 
 
+ICON_MAP = {
+    "📸": "photo_camera", "📝": "edit_note", "📊": "insights", "🔎": "search", "📦": "inventory_2", "🏷️": "sell",
+    "➕": "add_circle", "🧴": "water_drop", "📅": "event_available", "⚠️": "warning", "🕘": "history",
+    "🎟️": "local_activity", "🤝": "handshake", "⚡": "bolt", "🗂️": "category", "🧾": "receipt_long",
+    "🔬": "biotech", "🧭": "explore", "📋": "checklist", "🗓️": "calendar_month", "🧬": "face", "🧪": "science",
+}
+
+
+def msr(icon):
+    """אייקון Material בצבע הערכה; אם אין התאמה נשאר האימוג'י."""
+    name = ICON_MAP.get(icon)
+    return f'<span class="msr">{name}</span>' if name else icon
+
+
 def section(icon, title, subtitle="", index=""):
     sub = f'<div class="s">{html.escape(subtitle)}</div>' if subtitle else ""
     num = f'<div class="n">{html.escape(index)}</div>' if index else ""
     st.markdown(
-        f'<div class="sec"><div class="ico">{icon}</div>'
+        f'<div class="sec"><div class="ico">{msr(icon)}</div>'
         f'<div><div class="t">{html.escape(title)}</div>{sub}</div>{num}</div>',
         unsafe_allow_html=True,
     )
@@ -2267,9 +2296,10 @@ def selected_product_banner():
 
 
 def how_box(icon, title, text):
+    """כותרת מרכזית של כל מסך: כרטיס מעוטר עם מדליון אייקון, כותרת סריף וטקסט."""
     st.markdown(
-        f'<div class="how"><span class="how-ico">{icon}</span><div><b>{html.escape(title)}</b>'
-        f'<span>{html.escape(text)}</span></div></div>',
+        f'<div class="how"><div class="how-ico">{msr(icon)}</div><div class="how-body"><b>{html.escape(title)}</b>'
+        f'<span>{html.escape(text)}</span><i class="how-rule"></i></div></div>',
         unsafe_allow_html=True,
     )
 
@@ -2669,11 +2699,11 @@ def render_bottom_nav(active):
     """סרגל ניווט קבוע בתחתית המסך (מוצג רק בטלפון)."""
     history_label = "היסטוריה" + (" 🔔" if "🔔" in nav_label(TAB_HISTORY) else "")
     items = (
-        ("bn_home", "🏠", "בית", lambda: go_to(TAB_HOME), active == TAB_HOME),
-        ("bn_routine", "🗓️", "שגרה", lambda: go_to(TAB_ROUTINE), active == TAB_ROUTINE),
-        ("bn_camera", "📷", "צילום", camera_dialog, False),
-        ("bn_history", "🕘", history_label, lambda: go_to(TAB_HISTORY), active == TAB_HISTORY),
-        ("bn_more", "⋯", "עוד", more_dialog, active in (TAB_COMPAT, TAB_COUPONS)),
+        ("bn_home", NAV_ICONS["home"], "בית", lambda: go_to(TAB_HOME), active == TAB_HOME),
+        ("bn_routine", NAV_ICONS["routine"], "שגרה", lambda: go_to(TAB_ROUTINE), active == TAB_ROUTINE),
+        ("bn_camera", NAV_ICONS["product"], "צילום", camera_dialog, False),
+        ("bn_history", NAV_ICONS["history"], history_label, lambda: go_to(TAB_HISTORY), active == TAB_HISTORY),
+        ("bn_more", NAV_ICONS["more"], "עוד", more_dialog, active in (TAB_COMPAT, TAB_COUPONS)),
     )
     with st.container(key="bottomnav"):
         for column, (key, icon, label, action, on) in zip(st.columns(len(items)), items):
@@ -2699,10 +2729,10 @@ def tab_home():
     st.markdown('<div class="ask small">או הרבה יותר מזה</div>', unsafe_allow_html=True)
     cols = st.columns(4)
     for col, (label, tab, key) in zip(cols, (
-        ("🗓️ השגרה שלי", TAB_ROUTINE, "home_routine"),
-        (nav_label(TAB_HISTORY).replace(TAB_HISTORY, "🕘 היסטוריה"), TAB_HISTORY, "home_history"),
-        ("🤝 שילובים", TAB_COMPAT, "home_compat"),
-        ("🎟️ קופונים", TAB_COUPONS, "home_coupons"),
+        (nav_label(TAB_ROUTINE), TAB_ROUTINE, "home_routine"),
+        (nav_label(TAB_HISTORY), TAB_HISTORY, "home_history"),
+        (nav_label(TAB_COMPAT), TAB_COMPAT, "home_compat"),
+        (nav_label(TAB_COUPONS), TAB_COUPONS, "home_coupons"),
     )):
         if col.button(label, key=key, use_container_width=True):
             go_to(tab)
@@ -2718,13 +2748,13 @@ def tab_home():
                 if st.button("פתחי", key=f"home_recent_{entry['key']}"[:60], use_container_width=True):
                     open_history_entry(entry)
 
-    profile_label = "🧬 הפרופיל שלי" + ("  ✓" if not skinprofile.is_empty(st.session_state.profile) else "  (חדש)")
+    profile_label = f"{NAV_ICONS['profile']} הפרופיל שלי" + ("  ✓" if not skinprofile.is_empty(st.session_state.profile) else "  (חדש)")
     if st.button(profile_label, key="home_profile", use_container_width=True):
         profile_dialog()
 
     entry = routine_entries_by_slug().get(SAMPLE_SLUG)
     if entry:
-        if st.button("✨ רוצה לראות איך זה עובד? נסי עם מוצר לדוגמה", key="home_sample", use_container_width=True):
+        if st.button(f"{NAV_ICONS['sample']} רוצה לראות איך זה עובד? נסי עם מוצר לדוגמה", key="home_sample", use_container_width=True):
             choose_dekel_product({
                 "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"],
                 "description": "", "slug": entry["slug"], "picture": "", "verified": True,
