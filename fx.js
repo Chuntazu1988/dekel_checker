@@ -483,33 +483,37 @@
     scan();
 })();
 
-// שמירת השגרה בדפדפן: הכתובת היא מקור האמת, והדפדפן זוכר אותה לביקור הבא
+// שמירת השגרה והפרופיל בדפדפן: הכתובת היא מקור האמת, והדפדפן זוכר אותם לביקור הבא
 (function () {
     if (window.__dekelRoutine) return;
     window.__dekelRoutine = true;
-    var KEY = "dekel_routine";
-    function readParam() {
-        return new URLSearchParams(window.location.search).get("routine");
+    var KEYS = ['routine', 'profile'];
+    function read(key) {
+        return new URLSearchParams(window.location.search).get(key);
     }
     try {
-        var stored = window.localStorage.getItem(KEY);
-        if (!readParam() && stored && !window.sessionStorage.getItem("dekel_routine_tried")) {
-            window.sessionStorage.setItem("dekel_routine_tried", "1");
-            var params = new URLSearchParams(window.location.search);
-            params.set("routine", stored);
-            window.location.replace(window.location.pathname + "?" + params.toString());
+        var params = new URLSearchParams(window.location.search);
+        var restored = false;
+        for (var i = 0; i < KEYS.length; i++) {
+            var stored = window.localStorage.getItem('dekel_' + KEYS[i]);
+            if (!params.get(KEYS[i]) && stored) { params.set(KEYS[i], stored); restored = true; }
+        }
+        if (restored && !window.sessionStorage.getItem('dekel_restore_tried')) {
+            window.sessionStorage.setItem('dekel_restore_tried', '1');
+            window.location.replace(window.location.pathname + '?' + params.toString());
             return;
         }
     } catch (e) {}
     setInterval(function () {
         try {
-            var value = readParam();
-            if (value) window.localStorage.setItem(KEY, value);
-            else window.localStorage.removeItem(KEY);
+            for (var j = 0; j < KEYS.length; j++) {
+                var value = read(KEYS[j]);
+                if (value) window.localStorage.setItem('dekel_' + KEYS[j], value);
+                else window.localStorage.removeItem('dekel_' + KEYS[j]);
+            }
         } catch (e) {}
     }, 1000);
 })();
-
 // כפתור החלפת ערכת צבעים בפינת המסך
 (function () {
     if (window.__dekelTheme) return;

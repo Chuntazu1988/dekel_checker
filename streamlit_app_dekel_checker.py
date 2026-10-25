@@ -20,6 +20,7 @@ from PIL import Image, ImageOps, ImageFilter
 import easyocr
 
 from routine import plan_routine
+import skinprofile
 from hebrew import has_hebrew, ingredient_matches, ingredient_options
 from compat import (
     ACTIVE_NAMES,
@@ -1385,9 +1386,19 @@ if "photo_thumb" not in st.session_state:
     st.session_state.photo_thumb = None
 if "photo_source" not in st.session_state:
     st.session_state.photo_source = False
+if "profile" not in st.session_state:
+    st.session_state.profile = skinprofile.decode(st.query_params.get("profile", ""))
 if "routine" not in st.session_state:
     # השגרה נשמרת בכתובת (ובדפדפן), כדי שתחזור בביקור הבא
     st.session_state.routine = [slug for slug in st.query_params.get("routine", "").split(",") if slug]
+
+
+def save_profile():
+    encoded = skinprofile.encode(st.session_state.profile)
+    if encoded:
+        st.query_params["profile"] = encoded
+    elif "profile" in st.query_params:
+        del st.query_params["profile"]
 
 
 def save_routine():
@@ -1611,6 +1622,65 @@ def warnings_card_html(checked, results):
     return '<div class="warn-card"><div class="warn-head">⚡ אזהרות ברמת המוצר</div>' + "".join(rows) + "</div>"
 
 
+@st.dialog("🧬 הפרופיל שלי", width="large")
+def profile_dialog():
+    current = skinprofile.normalize(st.session_state.profile)
+    st.caption("ספרי לנו על העור שלך, ונתאים את הסיכום והאזהרות אליך. הפרטים נשמרים רק בדפדפן שלך.")
+    skin = st.segmented_control(
+        "סוג העור", list(skinprofile.SKIN_TYPES), default=current["skin"] or None,
+        format_func=lambda key: skinprofile.SKIN_TYPES[key], key="pf_skin",
+    )
+    concerns = st.multiselect(
+        "מה מטריד אותך?", list(skinprofile.CONCERNS), default=current["concerns"],
+        format_func=lambda key: skinprofile.CONCERNS[key], key="pf_concerns",
+    )
+    preg = st.toggle("🤰 בהיריון או מניקה", value=current["preg"], key="pf_preg")
+    avoid = st.text_input(
+        "רכיבים שאת רוצה להימנע מהם (באנגלית, מופרדים בפסיק)", value=", ".join(current["avoid"]),
+        placeholder="parfum, alcohol, coconut", key="pf_avoid",
+    )
+    save_col, clear_col = st.columns(2)
+    if save_col.button("💾 שמרי", type="primary", key="pf_save", use_container_width=True):
+        st.session_state.profile = skinprofile.normalize({
+            "skin": skin or "", "concerns": concerns, "preg": preg,
+            "avoid": [part for part in avoid.split(",")],
+        })
+        save_profile()
+        st.rerun()
+    if clear_col.button("🗑️ נקי פרופיל", key="pf_clear", use_container_width=True):
+        st.session_state.profile = skinprofile.normalize({})
+        save_profile()
+        st.rerun()
+
+
+def profile_chips_html(profile):
+    profile = skinprofile.normalize(profile)
+    chips = []
+    if profile["skin"]:
+        chips.append(skinprofile.SKIN_TYPES[profile["skin"]])
+    chips += [skinprofile.CONCERNS[c] for c in profile["concerns"]]
+    if profile["preg"]:
+        chips.append("היריון/הנקה")
+    chips += [f"בלי {a}" for a in profile["avoid"]]
+    return "".join(f"<span>{html.escape(c)}</span>" for c in chips)
+
+
+def personal_card_html(checked, results_map, meta):
+    if skinprofile.is_empty(st.session_state.profile):
+        return ""
+    actives = detect_actives(checked, results_map, (meta or {}).get("key_ingredients", ()))
+    notes = skinprofile.personal_notes(st.session_state.profile, checked, results_map, actives)
+    if not notes:
+        return ""
+    rows = "".join(
+        f'<div class="pn {level}"><span>{icon}</span><p>{html.escape(text)}</p></div>' for icon, text, level in notes
+    )
+    return (
+        '<div class="personal"><div class="pn-head">🧬 בשבילך'
+        f'<div class="pn-chips">{profile_chips_html(st.session_state.profile)}</div></div>{rows}</div>'
+    )
+
+
 def ingredient_table_html(checked):
     rows = "".join(
         f'<tr style="--i:{min(index, 14)}">'
@@ -1652,6 +1722,7 @@ def result_dialog(names):
     for card in (
         score_card_html(results),
         key_points_html(checked, st.session_state.results, st.session_state.product_meta),
+        personal_card_html(checked, st.session_state.results, st.session_state.product_meta),
         warnings_card_html(checked, results),
     ):
         if card:
@@ -1698,10 +1769,14 @@ def show_summary(ingredients):
     for card in (
         score_card_html(results),
         key_points_html(checked, st.session_state.results, st.session_state.product_meta),
+        personal_card_html(checked, st.session_state.results, st.session_state.product_meta),
         warnings_card_html(checked, results),
     ):
         if card:
             st.markdown(card, unsafe_allow_html=True)
+    if skinprofile.is_empty(st.session_state.profile):
+        if st.button("🧬 רוצה התאמה אישית? הגדירי פרופיל עור", key="pf_prompt", use_container_width=True):
+            profile_dialog()
     st.markdown(
         '<div class="tiles">'
         f'<div class="tile good"><div class="num" data-t="{good}">{good}</div><div class="lbl">טובים</div></div>'
@@ -2533,6 +2608,10 @@ def tab_home():
     )):
         if col.button(label, key=key, use_container_width=True):
             go_to(tab)
+
+    profile_label = "🧬 הפרופיל שלי" + ("  ✓" if not skinprofile.is_empty(st.session_state.profile) else "  (חדש)")
+    if st.button(profile_label, key="home_profile", use_container_width=True):
+        profile_dialog()
 
     entry = routine_entries_by_slug().get(SAMPLE_SLUG)
     if entry:
