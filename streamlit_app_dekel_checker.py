@@ -31,6 +31,14 @@ from compat import (
     mixing_advice,
 )
 
+def _logo_data_uri():
+    path = Path(__file__).parent / "assets" / "logo.svg"
+    try:
+        return "data:image/svg+xml;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+    except OSError:
+        return ""
+
+
 _logo_png = Path(__file__).parent / "assets" / "logo.png"
 st.set_page_config(
     page_title="Dekel Checker", page_icon=str(_logo_png) if _logo_png.exists() else "💧", layout="centered"
@@ -44,7 +52,8 @@ def grade_class(result):
     return GRADE_CLASS.get(result.get("rating", ""), "")
 
 st.markdown(
-    f"<style>{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
+    f"<style>:root{{--logo:url('{_logo_data_uri()}')}}"
+    f"{(Path(__file__).parent / 'style.css').read_text(encoding='utf-8')}</style>",
     unsafe_allow_html=True,
 )
 
@@ -1275,11 +1284,7 @@ def brand_html(size="md"):
 
 HERO_HTML = """
 <div class="hero">
-    <div class="scene" aria-hidden="true">
-        <span class="sc-drop">💧</span><i class="sc-ripple"></i><i class="sc-ripple r2"></i>
-        <span class="sc-bottle">🧴</span><span class="sc-leaf">🌿</span><span class="sc-flower">🌸</span>
-        <span class="sc-jar">🫙</span><span class="sc-spark s1">✨</span><span class="sc-spark s2">✨</span>
-    </div>
+    <div class="orb" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
     <div class="scan"></div>
     <div class="badge"><i></i>SKINCARE LAB</div>
     <h1>בדיקת רכיבים</h1>

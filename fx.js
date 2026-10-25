@@ -14,8 +14,7 @@
     var mouse = { x: -9999, y: -9999 };
     var bubbles = [];
     var icons = [];
-    var ICONS = ['💧', '🧴', '🌿', '🌸', '🧪', '🫧', '✨', '🪷', '🍃', '🫙', '💄', '🪞', '💅', '🧼', '🧽', '🌹',
-                 '@brush', '@compact', '@brush', '@compact', '@puff'];
+    var ICONS = ['@brush', '@compact', '@puff', '@drop', '@lipstick', '@brush', '@drop'];
     var TINTS = ['255,150,190', '178,140,240', '110,215,195', '255,190,140'];
     function readThemeColors() {
         var cs = window.getComputedStyle(doc.documentElement);
@@ -33,10 +32,10 @@
 
     window.__dekelReadTheme = function () { readThemeColors(); };
     function newBubble(fromBottom) {
-        var r = Math.random() * 30 + 8;
+        var r = Math.random() * 20 + 7;
         return {
             x: Math.random() * W, y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
-            r: r, vy: -(Math.random() * 0.15 + 0.04), ph: Math.random() * 6.28,
+            r: r, vy: -(Math.random() * 0.10 + 0.03), ph: Math.random() * 6.28,
             t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0
         };
     }
@@ -45,11 +44,11 @@
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = W * dpr; canvas.height = H * dpr;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        var n = Math.max(14, Math.min(34, Math.round(W / 45)));
+        var n = Math.max(5, Math.min(11, Math.round(W / 105)));
         bubbles = [];
         for (var i = 0; i < n; i++) bubbles.push(newBubble(false));
         icons = [];
-        var m = Math.max(10, Math.min(22, Math.round(W / 62)));
+        var m = Math.max(4, Math.min(8, Math.round(W / 150)));
         for (var j = 0; j < m; j++) icons.push(newIcon(false));
     }
 
@@ -58,8 +57,8 @@
         return {
             e: ICONS[Math.floor(Math.random() * ICONS.length)], s: size,
             x: Math.random() * W, y: fromBottom ? H + size + Math.random() * 120 : Math.random() * H,
-            vy: -(Math.random() * 0.14 + 0.05), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
-            a: Math.random() * 0.25 + 0.38
+            vy: -(Math.random() * 0.09 + 0.03), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
+            a: Math.random() * 0.12 + 0.16
         };
     }
 
@@ -74,43 +73,60 @@
     function drawCustom(kind, s) {
         var u = s / 40;
         if (kind === '@brush') {
-            // מברשת איפור: ידית ורודה, טבעת כסופה וזיפים רכים
             ctx.rotate(0.5);
             pill(-3 * u, 2 * u, 6 * u, 26 * u, 3 * u);
             var hg = ctx.createLinearGradient(-3 * u, 0, 3 * u, 0);
-            hg.addColorStop(0, '#F7A8C8'); hg.addColorStop(1, '#D66A9B');
+            hg.addColorStop(0, '#D9A8A0'); hg.addColorStop(1, '#8E4A58');
             ctx.fillStyle = hg; ctx.fill();
             pill(-4 * u, -4 * u, 8 * u, 9 * u, 2 * u);
-            ctx.fillStyle = '#D8DDE6'; ctx.fill();
+            var fg = ctx.createLinearGradient(-4 * u, 0, 4 * u, 0);
+            fg.addColorStop(0, '#E4C9A0'); fg.addColorStop(1, '#B58B5A');
+            ctx.fillStyle = fg; ctx.fill();
             ctx.beginPath();
             ctx.moveTo(-4 * u, -3 * u);
             ctx.bezierCurveTo(-9 * u, -10 * u, -7 * u, -22 * u, 0, -26 * u);
             ctx.bezierCurveTo(7 * u, -22 * u, 9 * u, -10 * u, 4 * u, -3 * u);
             ctx.closePath();
             var bg = ctx.createLinearGradient(0, -26 * u, 0, -3 * u);
-            bg.addColorStop(0, '#FFE1D2'); bg.addColorStop(0.6, '#FFC2D6'); bg.addColorStop(1, '#F59BBE');
+            bg.addColorStop(0, '#F4E4D6'); bg.addColorStop(1, '#D9A8A0');
             ctx.fillStyle = bg; ctx.fill();
         } else if (kind === '@compact') {
-            // פודרייה: מכסה עגול עם מראה וצירים
-            var cg = ctx.createRadialGradient(-6 * u, -6 * u, 2 * u, 0, 0, 20 * u);
-            cg.addColorStop(0, '#FFD9E8'); cg.addColorStop(1, '#F08AB0');
+            var cg = ctx.createLinearGradient(-18 * u, -18 * u, 18 * u, 18 * u);
+            cg.addColorStop(0, '#F1DDBB'); cg.addColorStop(1, '#B58B5A');
             ctx.beginPath(); ctx.arc(0, 0, 18 * u, 0, 6.2832); ctx.fillStyle = cg; ctx.fill();
-            ctx.lineWidth = 2 * u; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, 0, 11 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill();
-            ctx.beginPath(); ctx.arc(-4 * u, -4 * u, 3 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-            ctx.beginPath(); ctx.moveTo(-8 * u, 18 * u); ctx.lineTo(8 * u, 18 * u);
-            ctx.lineWidth = 3 * u; ctx.strokeStyle = '#D66A9B'; ctx.stroke();
-        } else {
-            // ספוג פודרה: ענן רך עם ידית
+            ctx.beginPath(); ctx.arc(0, 0, 12 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+            ctx.lineWidth = 1.4 * u; ctx.strokeStyle = 'rgba(120,80,40,0.45)'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(-4 * u, -4 * u, 3 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
+        } else if (kind === '@puff') {
             var pg = ctx.createRadialGradient(-4 * u, -4 * u, 2 * u, 0, 0, 18 * u);
-            pg.addColorStop(0, '#FFF1E6'); pg.addColorStop(1, '#F7B7C9');
+            pg.addColorStop(0, '#FBF1E8'); pg.addColorStop(1, '#E6BFB6');
             ctx.beginPath(); ctx.arc(0, 0, 16 * u, 0, 6.2832); ctx.fillStyle = pg; ctx.fill();
             for (var k = 0; k < 8; k++) {
-                var a = k * 0.785;
-                ctx.beginPath(); ctx.arc(Math.cos(a) * 14 * u, Math.sin(a) * 14 * u, 4.5 * u, 0, 6.2832);
-                ctx.fillStyle = 'rgba(255,232,238,0.9)'; ctx.fill();
+                var a2 = k * 0.785;
+                ctx.beginPath(); ctx.arc(Math.cos(a2) * 14 * u, Math.sin(a2) * 14 * u, 4.5 * u, 0, 6.2832);
+                ctx.fillStyle = 'rgba(251,241,232,0.9)'; ctx.fill();
             }
-            ctx.beginPath(); ctx.arc(0, 0, 5 * u, 0, 6.2832); ctx.fillStyle = '#E995B2'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 0, 5 * u, 0, 6.2832); ctx.fillStyle = '#C98B7A'; ctx.fill();
+        } else if (kind === '@lipstick') {
+            pill(-6 * u, 4 * u, 12 * u, 20 * u, 2 * u);
+            var lg = ctx.createLinearGradient(-6 * u, 0, 6 * u, 0);
+            lg.addColorStop(0, '#E4C9A0'); lg.addColorStop(1, '#A87F4E');
+            ctx.fillStyle = lg; ctx.fill();
+            pill(-5 * u, -6 * u, 10 * u, 11 * u, 2 * u);
+            ctx.fillStyle = '#E4C9A0'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-4.5 * u, -6 * u); ctx.lineTo(4.5 * u, -6 * u); ctx.lineTo(3.5 * u, -20 * u); ctx.lineTo(-2 * u, -23 * u); ctx.closePath();
+            ctx.fillStyle = '#A8485A'; ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(0, -20 * u);
+            ctx.bezierCurveTo(14 * u, -2 * u, 17 * u, 6 * u, 17 * u, 10 * u);
+            ctx.arc(0, 10 * u, 17 * u, 0, Math.PI, false);
+            ctx.bezierCurveTo(-17 * u, 6 * u, -14 * u, -2 * u, 0, -20 * u);
+            ctx.closePath();
+            var dg = ctx.createLinearGradient(0, -20 * u, 0, 26 * u);
+            dg.addColorStop(0, 'rgba(228,201,160,0.9)'); dg.addColorStop(1, 'rgba(201,139,122,0.9)');
+            ctx.fillStyle = dg; ctx.fill();
+            ctx.beginPath(); ctx.ellipse(-6 * u, 6 * u, 2.5 * u, 6 * u, 0.4, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
         }
     }
 
@@ -135,11 +151,11 @@
         var wob = Math.sin(now * 0.0005 + q.ph) * 14;
         var x = q.x + wob, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = 1 - q.pop;
         var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-        g.addColorStop(0, 'rgba(255,255,255,' + (0.75 * alpha).toFixed(3) + ')');
-        g.addColorStop(0.55, 'rgba(' + q.t + ',' + (0.16 * alpha).toFixed(3) + ')');
-        g.addColorStop(1, 'rgba(' + q.t + ',' + (0.34 * alpha).toFixed(3) + ')');
+        g.addColorStop(0, 'rgba(255,255,255,' + (0.55 * alpha).toFixed(3) + ')');
+        g.addColorStop(0.55, 'rgba(' + q.t + ',' + (0.10 * alpha).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(' + q.t + ',' + (0.20 * alpha).toFixed(3) + ')');
         ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.8 * alpha).toFixed(3) + ')';
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.55 * alpha).toFixed(3) + ')';
         ctx.lineWidth = 1.2; ctx.stroke();
         ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.4, r * 0.18, 0, 6.2832);
         ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * alpha).toFixed(3) + ')'; ctx.fill();
@@ -154,7 +170,7 @@
             var ay = (a.y + Math.cos(now * a.sy + a.p) * 0.12) * H;
             var ar = a.r * Math.max(W, H);
             var ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, ar);
-            ag.addColorStop(0, 'rgba(' + a.c + ',0.34)');
+            ag.addColorStop(0, 'rgba(' + a.c + ',0.30)');
             ag.addColorStop(1, 'rgba(' + a.c + ',0)');
             ctx.fillStyle = ag; ctx.fillRect(0, 0, W, H);
         }
@@ -327,7 +343,7 @@
     });
 
     /* ---------- קונפטי חגיגי ---------- */
-    var CONFETTI_COLORS = ['#F08AB0', '#B28CF0', '#6ED7C3', '#FBBF24', '#FFFFFF', '#F472B6', '#7DD3FC'];
+    var CONFETTI_COLORS = ['#C9A66B', '#E4C9A0', '#B76E79', '#5B3A6B', '#5F8F83', '#FFFFFF', '#D9B2C0'];
 
     function launchConfetti(host) {
         if (reduce) return;
@@ -518,7 +534,7 @@
 (function () {
     if (window.__dekelTheme) return;
     window.__dekelTheme = true;
-    var THEMES = [['pearl', 'פנינה'], ['mint', 'מנטה'], ['peach', 'אפרסק'], ['night', 'לילה']];
+    var THEMES = [['pearl', 'אטלייה'], ['mint', 'סייג׳'], ['peach', 'רוזווד'], ['night', 'נואר']];
     var KEY = 'dekel_theme';
     var root = document.documentElement;
     var index = 0;
@@ -555,4 +571,50 @@
         apply(true);
     });
     apply(false);
+})();
+
+// מעבר מסך רך: דהייה קצרה לפני ההחלפה, וכניסה מדורגת אחריה
+(function () {
+    if (window.__dekelTransitions) return;
+    window.__dekelTransitions = true;
+    var NAV = '.st-key-nav button, .st-key-bottomnav button, [class*="st-key-go_"] button, [class*="st-key-home_"] button, [class*="st-key-nv_"] button, [class*="st-key-cam_"] button, [class*="st-key-more_"] button';
+    var leaving = null;
+    document.addEventListener('click', function (e) {
+        var hit = e.target.closest && e.target.closest(NAV);
+        if (!hit) return;
+        var main = document.querySelector('.block-container');
+        if (!main) return;
+        main.classList.add('leaving');
+        leaving = main;
+        setTimeout(function () { if (leaving) { leaving.classList.remove('leaving'); leaving = null; } }, 1200);
+    }, true);
+    new MutationObserver(function () {
+        var main = document.querySelector('.block-container');
+        if (main && main.classList.contains('leaving') && leaving === main) {
+            // התוכן התחלף: מסירים את הדהייה בזמן שהפריטים החדשים נכנסים בהדרגה
+            setTimeout(function () { main.classList.remove('leaving'); leaving = null; }, 140);
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+})();
+
+// מסך פתיחה: לוגו שמופיע ודוהה, פעם אחת בכל ביקור
+(function () {
+    if (window.__dekelSplash) return;
+    window.__dekelSplash = true;
+    try { if (window.sessionStorage.getItem('dekel_splash')) return; window.sessionStorage.setItem('dekel_splash', '1'); } catch (e) { return; }
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    var splash = document.createElement('div');
+    splash.className = 'splash';
+    var inner = document.createElement('div');
+    inner.className = 'splash-inner';
+    var mark = document.createElement('div'); mark.className = 'splash-mark';
+    var name = document.createElement('div'); name.className = 'splash-name'; name.textContent = 'Dekel Checker';
+    var line = document.createElement('div'); line.className = 'splash-line';
+    line.appendChild(document.createElement('i'));
+    inner.appendChild(mark); inner.appendChild(name); inner.appendChild(line);
+    splash.appendChild(inner);
+    document.body.appendChild(splash);
+    setTimeout(function () { splash.classList.add('out'); }, 1500);
+    setTimeout(function () { splash.remove(); }, 2400);
 })();
