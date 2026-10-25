@@ -14,20 +14,29 @@
     var mouse = { x: -9999, y: -9999 };
     var bubbles = [];
     var icons = [];
-    var ICONS = ['💧', '🧴', '🌿', '🌸', '🧪', '🫧', '✨', '🪷', '🍃', '🫙'];
+    var ICONS = ['💧', '🧴', '🌿', '🌸', '🧪', '🫧', '✨', '🪷', '🍃', '🫙', '💄', '🪞', '💅', '🧼', '🧽', '🌹',
+                 '@brush', '@compact', '@brush', '@compact', '@puff'];
     var TINTS = ['255,150,190', '178,140,240', '110,215,195', '255,190,140'];
+    function readThemeColors() {
+        var cs = window.getComputedStyle(doc.documentElement);
+        for (var t = 0; t < 4; t++) {
+            var v = cs.getPropertyValue('--aur' + (t + 1)).trim();
+            if (v) { AURORA[t].c = v.replace(/\s+/g, ''); TINTS[t] = v.replace(/\s+/g, ''); }
+        }
+    }
     var AURORA = [
-        { c: '255,182,203', x: 0.15, y: 0.2, r: 0.45, sx: 0.00021, sy: 0.00017, p: 0 },
-        { c: '196,170,240', x: 0.85, y: 0.15, r: 0.5, sx: 0.00017, sy: 0.00023, p: 2 },
-        { c: '160,230,215', x: 0.6, y: 0.95, r: 0.55, sx: 0.00019, sy: 0.00015, p: 4 },
-        { c: '255,214,170', x: 0.1, y: 0.85, r: 0.4, sx: 0.00023, sy: 0.00019, p: 1 }
+        { c: '255,182,203', x: 0.15, y: 0.2, r: 0.45, sx: 0.00012, sy: 0.0001, p: 0 },
+        { c: '196,170,240', x: 0.85, y: 0.15, r: 0.5, sx: 0.0001, sy: 0.00013, p: 2 },
+        { c: '160,230,215', x: 0.6, y: 0.95, r: 0.55, sx: 0.00011, sy: 0.00009, p: 4 },
+        { c: '255,214,170', x: 0.1, y: 0.85, r: 0.4, sx: 0.00013, sy: 0.00011, p: 1 }
     ];
 
+    window.__dekelReadTheme = function () { readThemeColors(); };
     function newBubble(fromBottom) {
         var r = Math.random() * 30 + 8;
         return {
             x: Math.random() * W, y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
-            r: r, vy: -(Math.random() * 0.35 + 0.12), ph: Math.random() * 6.28,
+            r: r, vy: -(Math.random() * 0.15 + 0.04), ph: Math.random() * 6.28,
             t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0
         };
     }
@@ -40,7 +49,7 @@
         bubbles = [];
         for (var i = 0; i < n; i++) bubbles.push(newBubble(false));
         icons = [];
-        var m = Math.max(7, Math.min(16, Math.round(W / 85)));
+        var m = Math.max(10, Math.min(22, Math.round(W / 62)));
         for (var j = 0; j < m; j++) icons.push(newIcon(false));
     }
 
@@ -49,17 +58,73 @@
         return {
             e: ICONS[Math.floor(Math.random() * ICONS.length)], s: size,
             x: Math.random() * W, y: fromBottom ? H + size + Math.random() * 120 : Math.random() * H,
-            vy: -(Math.random() * 0.28 + 0.1), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
+            vy: -(Math.random() * 0.14 + 0.05), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
             a: Math.random() * 0.25 + 0.38
         };
     }
 
+    function pill(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+    }
+
+    function drawCustom(kind, s) {
+        var u = s / 40;
+        if (kind === '@brush') {
+            // מברשת איפור: ידית ורודה, טבעת כסופה וזיפים רכים
+            ctx.rotate(0.5);
+            pill(-3 * u, 2 * u, 6 * u, 26 * u, 3 * u);
+            var hg = ctx.createLinearGradient(-3 * u, 0, 3 * u, 0);
+            hg.addColorStop(0, '#F7A8C8'); hg.addColorStop(1, '#D66A9B');
+            ctx.fillStyle = hg; ctx.fill();
+            pill(-4 * u, -4 * u, 8 * u, 9 * u, 2 * u);
+            ctx.fillStyle = '#D8DDE6'; ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-4 * u, -3 * u);
+            ctx.bezierCurveTo(-9 * u, -10 * u, -7 * u, -22 * u, 0, -26 * u);
+            ctx.bezierCurveTo(7 * u, -22 * u, 9 * u, -10 * u, 4 * u, -3 * u);
+            ctx.closePath();
+            var bg = ctx.createLinearGradient(0, -26 * u, 0, -3 * u);
+            bg.addColorStop(0, '#FFE1D2'); bg.addColorStop(0.6, '#FFC2D6'); bg.addColorStop(1, '#F59BBE');
+            ctx.fillStyle = bg; ctx.fill();
+        } else if (kind === '@compact') {
+            // פודרייה: מכסה עגול עם מראה וצירים
+            var cg = ctx.createRadialGradient(-6 * u, -6 * u, 2 * u, 0, 0, 20 * u);
+            cg.addColorStop(0, '#FFD9E8'); cg.addColorStop(1, '#F08AB0');
+            ctx.beginPath(); ctx.arc(0, 0, 18 * u, 0, 6.2832); ctx.fillStyle = cg; ctx.fill();
+            ctx.lineWidth = 2 * u; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 11 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill();
+            ctx.beginPath(); ctx.arc(-4 * u, -4 * u, 3 * u, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-8 * u, 18 * u); ctx.lineTo(8 * u, 18 * u);
+            ctx.lineWidth = 3 * u; ctx.strokeStyle = '#D66A9B'; ctx.stroke();
+        } else {
+            // ספוג פודרה: ענן רך עם ידית
+            var pg = ctx.createRadialGradient(-4 * u, -4 * u, 2 * u, 0, 0, 18 * u);
+            pg.addColorStop(0, '#FFF1E6'); pg.addColorStop(1, '#F7B7C9');
+            ctx.beginPath(); ctx.arc(0, 0, 16 * u, 0, 6.2832); ctx.fillStyle = pg; ctx.fill();
+            for (var k = 0; k < 8; k++) {
+                var a = k * 0.785;
+                ctx.beginPath(); ctx.arc(Math.cos(a) * 14 * u, Math.sin(a) * 14 * u, 4.5 * u, 0, 6.2832);
+                ctx.fillStyle = 'rgba(255,232,238,0.9)'; ctx.fill();
+            }
+            ctx.beginPath(); ctx.arc(0, 0, 5 * u, 0, 6.2832); ctx.fillStyle = '#E995B2'; ctx.fill();
+        }
+    }
+
     function drawIcon(q, now) {
-        var sway = Math.sin(now * 0.0007 + q.ph);
+        var sway = Math.sin(now * 0.0005 + q.ph);
         ctx.save();
         ctx.globalAlpha = q.a;
         ctx.translate(q.x + sway * 22, q.y);
         ctx.rotate(sway * 0.35 + q.rot * 0.2);
+        if (q.e.charAt(0) === '@') {
+            drawCustom(q.e, q.s);
+            ctx.restore();
+            return;
+        }
         ctx.font = q.s + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(q.e, 0, 0);
@@ -67,7 +132,7 @@
     }
 
     function drawBubble(q, now) {
-        var wob = Math.sin(now * 0.0009 + q.ph) * 14;
+        var wob = Math.sin(now * 0.0005 + q.ph) * 14;
         var x = q.x + wob, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = 1 - q.pop;
         var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
         g.addColorStop(0, 'rgba(255,255,255,' + (0.75 * alpha).toFixed(3) + ')');
@@ -112,9 +177,9 @@
         for (var i = 0; i < bubbles.length; i++) {
             var q = bubbles[i];
             var dx = q.x - mouse.x, dy = q.y - mouse.y, dm = Math.sqrt(dx * dx + dy * dy);
-            if (dm < q.r + 90 && dm > 0) { q.x += (dx / dm) * 1.1; q.y += (dy / dm) * 1.1; }
+            if (dm < q.r + 90 && dm > 0) { q.x += (dx / dm) * 0.6; q.y += (dy / dm) * 0.6; }
             q.y += q.vy;
-            if (q.pop > 0) { q.pop += 0.07; }
+            if (q.pop > 0) { q.pop += 0.05; }
             if (q.pop >= 1 || q.y < -q.r - 20) bubbles[i] = newBubble(true);
             else drawBubble(q, now);
         }
@@ -123,11 +188,12 @@
 
     if (!reduce) {
         resize();
+        readThemeColors();
         window.addEventListener('resize', resize);
         doc.addEventListener('visibilitychange', function () { if (!doc.hidden) requestAnimationFrame(frame); });
         doc.addEventListener('pointerdown', function (e) {
             for (var i = 0; i < bubbles.length; i++) {
-                var q = bubbles[i], bx = q.x + Math.sin(performance.now() * 0.0009 + q.ph) * 14;
+                var q = bubbles[i], bx = q.x + Math.sin(performance.now() * 0.0005 + q.ph) * 14;
                 var d = Math.sqrt((bx - e.clientX) * (bx - e.clientX) + (q.y - e.clientY) * (q.y - e.clientY));
                 if (d < q.r + 6 && q.pop === 0) q.pop = 0.01;
             }
@@ -434,4 +500,47 @@
             else window.localStorage.removeItem(KEY);
         } catch (e) {}
     }, 1000);
+})();
+
+// כפתור החלפת ערכת צבעים בפינת המסך
+(function () {
+    if (window.__dekelTheme) return;
+    window.__dekelTheme = true;
+    var THEMES = [['pearl', 'פנינה'], ['mint', 'מנטה'], ['peach', 'אפרסק'], ['night', 'לילה']];
+    var KEY = 'dekel_theme';
+    var root = document.documentElement;
+    var index = 0;
+    try {
+        var saved = window.localStorage.getItem(KEY);
+        for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === saved) index = i;
+    } catch (e) {}
+
+    function apply(show) {
+        var name = THEMES[index][0];
+        if (name === 'pearl') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', name);
+        try { window.localStorage.setItem(KEY, name); } catch (e) {}
+        if (window.__dekelReadTheme) window.__dekelReadTheme();
+        if (show) {
+            tip.textContent = 'ערכת צבעים: ' + THEMES[index][1];
+            tip.classList.add('show');
+            clearTimeout(tip._t);
+            tip._t = setTimeout(function () { tip.classList.remove('show'); }, 1600);
+        }
+    }
+
+    var button = document.createElement('button');
+    button.className = 'theme-fab';
+    button.type = 'button';
+    button.title = 'החלפת ערכת צבעים';
+    button.setAttribute('aria-label', 'החלפת ערכת צבעים');
+    button.textContent = '🎨';
+    var tip = document.createElement('div');
+    tip.className = 'theme-tip';
+    document.body.appendChild(button);
+    document.body.appendChild(tip);
+    button.addEventListener('click', function () {
+        index = (index + 1) % THEMES.length;
+        apply(true);
+    });
+    apply(false);
 })();
