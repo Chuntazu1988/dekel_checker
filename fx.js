@@ -466,7 +466,15 @@
             if (p < 1) requestAnimationFrame(tick);
         })(start);
     }
+    function flagAlerts() {
+        var buttons = doc.querySelectorAll('.st-key-nav button, .st-key-home_history button');
+        for (var b = 0; b < buttons.length; b++) {
+            buttons[b].classList.toggle('has-alert', buttons[b].textContent.indexOf('🔔') >= 0);
+        }
+    }
+
     function scan() {
+        flagAlerts();
         var els = doc.querySelectorAll('.num[data-t]:not([data-done])');
         for (var i = 0; i < els.length; i++) countUp(els[i]);
         celebrate();

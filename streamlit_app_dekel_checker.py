@@ -579,9 +579,7 @@ def parse_coupons(rows, today=None):
     return coupons
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_coupons():
-    """קוראת את ההטבות הפעילות מדף הבית של דקל. שגיאות לא נשמרות במטמון."""
+def _scrape_coupons():
     ensure_playwright_browser()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -596,6 +594,84 @@ def fetch_coupons():
     if not coupons:
         raise RuntimeError("no-coupons")
     return coupons
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_coupons():
+    """קוראת את ההטבות הפעילות מדף הבית של דקל. שגיאות לא נשמרות במטמון."""
+    return _scrape_coupons()
+
+
+COUPON_TTL = 1800
+COUPON_RETRY = 300
+
+
+@st.cache_resource(show_spinner=False)
+def coupon_holder():
+    return {"coupons": None, "ts": 0.0, "busy": False, "failed": 0.0}
+
+
+def _refresh_coupons(holder):
+    try:
+        holder["coupons"] = _scrape_coupons()
+        holder["ts"] = time.time()
+    except Exception:
+        holder["failed"] = time.time()
+    finally:
+        holder["busy"] = False
+
+
+def ensure_coupons_async():
+    """מביאה הטבות ברקע (בלי לעכב את המסך), כדי שההיסטוריה תישאר 'חיה'."""
+    holder = coupon_holder()
+    fresh = holder["coupons"] is not None and time.time() - holder["ts"] < COUPON_TTL
+    recently_failed = time.time() - holder["failed"] < COUPON_RETRY
+    if holder["busy"] or fresh or recently_failed:
+        return
+    holder["busy"] = True
+    threading.Thread(target=_refresh_coupons, args=(holder,), daemon=True).start()
+
+
+BRAND_STOP = {"the", "skincare", "cosmetics", "labs", "lab", "beauty", "care", "and", "paris", "דה", "הטבה", "קבועה"}
+
+
+def brand_tokens(company):
+    words = re.findall(r"[a-z0-9\u0590-\u05ff]+", (company or "").lower())
+    return {w for w in words if len(w) >= 3 and w not in BRAND_STOP}
+
+
+def coupons_for(company, coupons):
+    tokens = brand_tokens(company)
+    if not tokens:
+        return []
+    found = []
+    for coupon in coupons or []:
+        text = f"{coupon['title']} {coupon['description']}".lower()
+        if any(token in text for token in tokens):
+            found.append(coupon)
+    return found
+
+
+def history_alerts():
+    """רשימת (רשומת היסטוריה, הטבות) לפריטים שיש להם הטבה פעילה כרגע."""
+    coupons = coupon_holder()["coupons"]
+    if not coupons:
+        return []
+    alerts = []
+    for entry in st.session_state.history:
+        product = entry.get("product") or {}
+        matches = coupons_for(product.get("company", ""), coupons)
+        if matches:
+            alerts.append((entry, matches))
+    return alerts
+
+
+def nav_label(tab):
+    if tab == TAB_HISTORY and st.session_state.history:
+        count = len(history_alerts())
+        if count:
+            return f"{tab} 🔔{count}"
+    return tab
 
 
 def coupon_card_html(coupon):
@@ -1922,6 +1998,8 @@ def add_history(kind, key, title, thumb, product=None, meta=None):
     }
     history = [item for item in st.session_state.history if item["key"] != key]
     st.session_state.history = ([entry] + history)[:MAX_HISTORY]
+    if kind == "product":
+        ensure_coupons_async()
 
 
 def choose_dekel_product(product, from_photo=False):
@@ -2395,6 +2473,12 @@ def tab_history():
     if not history:
         st.info("עוד אין היסטוריה. אחרי שתזהי מוצר או תסרקי רשימת רכיבים, הם יופיעו כאן.")
         return
+    ensure_coupons_async()
+    alerts = {entry["key"]: matches for entry, matches in history_alerts()}
+    if alerts:
+        st.success(f"🔔 יש הטבות פעילות אצל דקל ל-{len(alerts)} מהמוצרים בהיסטוריה שלך")
+    elif coupon_holder()["busy"]:
+        st.caption("בודקת אם יש הטבות פעילות למוצרים שלך...")
     with st.container(border=True):
         section("🕘", "החיפושים שלי", f"{len(history)} פריטים")
         for index, entry in enumerate(history):
@@ -2413,6 +2497,8 @@ def tab_history():
             )
             if button_col.button("📄 פתחי סיכום", key=f"hist_open_{index}"):
                 open_history_entry(entry)
+            for coupon in alerts.get(entry["key"], []):
+                st.markdown(coupon_card_html(coupon), unsafe_allow_html=True)
         if st.button("🗑️ נקי היסטוריה", key="hist_clear"):
             st.session_state.history = []
             st.rerun()
@@ -2441,7 +2527,7 @@ def tab_home():
     cols = st.columns(4)
     for col, (label, tab, key) in zip(cols, (
         ("🗓️ השגרה שלי", TAB_ROUTINE, "home_routine"),
-        ("🕘 היסטוריה", TAB_HISTORY, "home_history"),
+        (nav_label(TAB_HISTORY).replace(TAB_HISTORY, "🕘 היסטוריה"), TAB_HISTORY, "home_history"),
         ("🤝 שילובים", TAB_COMPAT, "home_compat"),
         ("🎟️ קופונים", TAB_COUPONS, "home_coupons"),
     )):
@@ -2482,9 +2568,23 @@ if st.session_state.get("nav") not in NAV_TABS:
 
 active_tab = st.session_state.nav
 if active_tab != TAB_HOME:
-    active_tab = st.segmented_control("ניווט", NAV_TABS, key="nav", label_visibility="collapsed") or active_tab
+    active_tab = st.segmented_control(
+        "ניווט", NAV_TABS, key="nav", label_visibility="collapsed", format_func=nav_label
+    ) or active_tab
     if active_tab == TAB_HOME:
         st.rerun()
+def coupon_watcher():
+    holder = coupon_holder()
+    if not holder["busy"] and st.session_state.get("coupons_seen") != holder["ts"]:
+        st.session_state.coupons_seen = holder["ts"]
+        st.rerun()
+
+
+if st.session_state.history and coupon_holder()["busy"]:
+    st.fragment(run_every=4)(coupon_watcher)()
+elif st.session_state.history:
+    ensure_coupons_async()
+
 {
     TAB_HOME: tab_home,
     TAB_INGREDIENTS: tab_ingredients,
