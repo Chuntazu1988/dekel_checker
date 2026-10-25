@@ -954,24 +954,24 @@ html[data-theme="night"] {
     color-scheme: dark;
 }
 /* ערכת לילה: משטחים כהים וטקסט בהיר */
-html[data-theme="night"] .stApp, html[data-theme="night"] [data-testid="stMarkdownContainer"], html[data-theme="night"] label,
-html[data-theme="night"] [data-testid="stWidgetLabel"] p, html[data-theme="night"] .brand-name { color: var(--ink); }
-html[data-theme="night"] .table-wrap, html[data-theme="night"] .rcard, html[data-theme="night"] .score-card,
-html[data-theme="night"] .warn-card, html[data-theme="night"] .pcard, html[data-theme="night"] .kp, html[data-theme="night"] .rt-col,
-html[data-theme="night"] .cp-card, html[data-theme="night"] .ug, html[data-theme="night"] .g-card, html[data-theme="night"] .guide .g-instr,
-html[data-theme="night"] .scanner, html[data-theme="night"] .tile, html[data-theme="night"] .cx-chip, html[data-theme="night"] .hist-noimg {
-    background: rgba(34, 26, 58, 0.86) !important; color: var(--ink);
+html[data-mode="dark"] .stApp, html[data-mode="dark"] [data-testid="stMarkdownContainer"], html[data-mode="dark"] label,
+html[data-mode="dark"] [data-testid="stWidgetLabel"] p, html[data-mode="dark"] .brand-name { color: var(--ink); }
+html[data-mode="dark"] .table-wrap, html[data-mode="dark"] .rcard, html[data-mode="dark"] .score-card,
+html[data-mode="dark"] .warn-card, html[data-mode="dark"] .pcard, html[data-mode="dark"] .kp, html[data-mode="dark"] .rt-col,
+html[data-mode="dark"] .cp-card, html[data-mode="dark"] .ug, html[data-mode="dark"] .g-card, html[data-mode="dark"] .guide .g-instr,
+html[data-mode="dark"] .scanner, html[data-mode="dark"] .tile, html[data-mode="dark"] .cx-chip, html[data-mode="dark"] .hist-noimg {
+    background: var(--glass-strong) !important; color: var(--ink);
 }
-html[data-theme="night"] .st-key-nav [data-testid="stButtonGroup"] button, html[data-theme="night"] .stButton > button,
-html[data-theme="night"] .stLinkButton > a { background: var(--glass-strong); color: var(--ink); }
-html[data-theme="night"] [data-testid="stVerticalBlockBorderWrapper"] { background: rgba(30, 22, 52, 0.72) !important; }
-html[data-theme="night"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(rgba(30, 22, 52, 0.98), rgba(30, 22, 52, 0.98)), var(--grad-brand) !important; color: var(--ink); }
-html[data-theme="night"] [data-testid="stTextInput"] input, html[data-theme="night"] [data-testid="stTextArea"] textarea,
-html[data-theme="night"] [data-baseweb="select"] > div { background: rgba(255, 255, 255, 0.08) !important; color: var(--ink); }
-html[data-theme="night"] .ing-table td, html[data-theme="night"] .rcard p, html[data-theme="night"] .cp-desc, html[data-theme="night"] .cx-reasons,
-html[data-theme="night"] .how span:not(.how-ico), html[data-theme="night"] .g-title, html[data-theme="night"] .g-list li { color: var(--ink); }
-html[data-theme="night"] .st-key-home_sample button { background: var(--glass-strong); }
-html[data-theme="night"] .brand-mark { filter: drop-shadow(0 8px 18px rgba(161, 139, 255, 0.7)); }
+html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button, html[data-mode="dark"] .stButton > button,
+html[data-mode="dark"] .stLinkButton > a { background: var(--glass-strong); color: var(--ink); }
+html[data-mode="dark"] [data-testid="stVerticalBlockBorderWrapper"] { background: rgba(30, 22, 52, 0.72) !important; }
+html[data-mode="dark"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; color: var(--ink); }
+html[data-mode="dark"] [data-testid="stTextInput"] input, html[data-mode="dark"] [data-testid="stTextArea"] textarea,
+html[data-mode="dark"] [data-baseweb="select"] > div { background: rgba(255, 255, 255, 0.08) !important; color: var(--ink); }
+html[data-mode="dark"] .ing-table td, html[data-mode="dark"] .rcard p, html[data-mode="dark"] .cp-desc, html[data-mode="dark"] .cx-reasons,
+html[data-mode="dark"] .how span:not(.how-ico), html[data-mode="dark"] .g-title, html[data-mode="dark"] .g-list li { color: var(--ink); }
+html[data-mode="dark"] .st-key-home_sample button { background: var(--glass-strong); }
+html[data-mode="dark"] .brand-mark { filter: drop-shadow(0 8px 18px rgba(161, 139, 255, 0.7)); }
 
 /* ---------- כפתור החלפת ערכת צבעים ---------- */
 .theme-fab {
@@ -986,7 +986,7 @@ html[data-theme="night"] .brand-mark { filter: drop-shadow(0 8px 18px rgba(161, 
 .theme-tip { position: fixed; left: 4.6rem; bottom: 1.4rem; z-index: 99999; padding: 0.35rem 0.9rem; border-radius: 999px; font: 600 0.85rem 'Rubik', 'Heebo', sans-serif; color: #fff; background: var(--grad-brand); box-shadow: var(--sh-2); opacity: 0; transform: translateX(-10px); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
 .theme-tip.show { opacity: 1; transform: none; }
 
-html[data-theme="night"] .ring::before { background: #1C1530; box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.5); }
+html[data-mode="dark"] .ring::before { background: #1C1530; box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.5); }
 
 /* ניגודיות: כפתורים וכרטיסים בולטים יותר על הרקע */
 .stButton > button:not([data-testid="stBaseButton-primary"]), .stLinkButton > a { border: 1.5px solid rgba(var(--p-rgb), 0.38); box-shadow: var(--sh-1); }
@@ -1039,19 +1039,19 @@ html[data-theme="night"] .ring::before { background: #1C1530; box-shadow: inset 
     .st-key-bottomnav [class*="bn_camera"] button p { color: #fff; }
     .st-key-bottomnav [class*="bn_camera"] button:hover { background: var(--grad-brand) !important; }
 }
-html[data-theme="night"] .st-key-bottomnav { background: rgba(28, 20, 50, 0.9); }
+html[data-mode="dark"] .st-key-bottomnav { background: rgba(28, 20, 50, 0.9); }
 
 
 /* ---------- ניגודיות: משטחים אטומים יותר וטקסט כהה וברור ---------- */
 :root { --glass: rgba(255, 255, 255, 0.90); --glass-strong: rgba(255, 255, 255, 0.95); }
 html[data-theme="night"] { --glass: rgba(38, 28, 66, 0.86); --glass-strong: rgba(52, 40, 88, 0.92); }
 [data-testid="stVerticalBlockBorderWrapper"] { background: rgba(255, 255, 255, 0.86) !important; }
-html[data-theme="night"] [data-testid="stVerticalBlockBorderWrapper"] { background: rgba(30, 22, 52, 0.86) !important; }
+html[data-mode="dark"] [data-testid="stVerticalBlockBorderWrapper"] { background: var(--glass) !important; }
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p, .sec .s, .how span:not(.how-ico) { color: var(--muted) !important; opacity: 1; }
 .how { background: rgba(255, 255, 255, 0.92); }
 [data-testid="stTextInput"] input::placeholder, [data-testid="stTextArea"] textarea::placeholder, [data-baseweb="select"] [aria-live] { color: var(--muted) !important; opacity: 0.85; }
 [data-baseweb="select"] > div, [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea { background: #FFFFFF !important; color: var(--ink) !important; border: 1.5px solid rgba(var(--p-rgb), 0.45) !important; }
-html[data-theme="night"] [data-baseweb="select"] > div, html[data-theme="night"] [data-testid="stTextInput"] input, html[data-theme="night"] [data-testid="stTextArea"] textarea { background: rgba(255, 255, 255, 0.10) !important; }
+html[data-mode="dark"] [data-baseweb="select"] > div, html[data-mode="dark"] [data-testid="stTextInput"] input, html[data-mode="dark"] [data-testid="stTextArea"] textarea { background: rgba(255, 255, 255, 0.10) !important; }
 .hero { background-image: linear-gradient(rgba(40, 10, 60, 0.10), rgba(40, 10, 60, 0.10)), var(--grad-brand) !important; }
 .hero p, .hero .steps span { text-shadow: 0 1px 10px rgba(40, 10, 60, 0.45); }
 .st-key-go_list button p, .st-key-go_product button p, .st-key-go_search button p { text-shadow: 0 1px 8px rgba(40, 10, 60, 0.4); }
@@ -1189,7 +1189,7 @@ html { background:
 .st-key-go_list button::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E4A58' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='4' width='12' height='17' rx='2'/%3E%3Cpath d='M9 4V3h6v1M9 10h6M9 14h6M9 18h3'/%3E%3C/svg%3E"); }
 .st-key-go_product button::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E4A58' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8h4l2-3h6l2 3h4v11H3z'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E"); }
 .st-key-go_search button::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E4A58' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E"); }
-html[data-theme="night"] .st-key-go_list button::before, html[data-theme="night"] .st-key-go_product button::before, html[data-theme="night"] .st-key-go_search button::before { filter: brightness(1.8) saturate(0.8); }
+html[data-mode="dark"] .st-key-go_list button::before, html[data-mode="dark"] .st-key-go_product button::before, html[data-mode="dark"] .st-key-go_search button::before { filter: brightness(1.8) saturate(0.8); }
 .st-key-home_sample button { background: transparent; border: 1px dashed rgba(var(--p-rgb), 0.6); color: var(--pink-d); font-weight: 500; }
 .st-key-home_profile button { background: transparent; border: 1px solid rgba(var(--v-rgb), 0.4); }
 
@@ -1209,8 +1209,8 @@ html[data-theme="night"] .st-key-go_list button::before, html[data-theme="night"
 .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"], .st-key-nav [data-testid="stButtonGroup"] button[kind="segmented_controlActive"] {
     background: var(--ink) !important; border-color: var(--ink) !important; box-shadow: var(--sh-1);
 }
-html[data-theme="night"] .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"] { background: var(--gold) !important; }
-html[data-theme="night"] .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"] * { color: #1B1410 !important; }
+html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"] { background: var(--gold) !important; }
+html[data-mode="dark"] .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"] * { color: #1B1410 !important; }
 .has-alert { animation: none !important; border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(var(--p-rgb), 0.22); }
 
 /* ---------- משטחים: קווים דקים, פינות מאופקות ---------- */
@@ -1235,7 +1235,7 @@ html[data-theme="night"] .st-key-nav [data-testid="stButtonGroup"] button[aria-c
     .st-key-bottomnav [class*="bn_camera"] button { background: var(--ink) !important; box-shadow: 0 10px 24px rgba(var(--shadow), 0.4), 0 0 0 4px var(--bg) !important; }
     .st-key-bottomnav [class*="_on"] button { color: var(--pink-d); background: rgba(var(--p-rgb), 0.12) !important; }
 }
-html[data-theme="night"] .st-key-bottomnav { background: rgba(20, 16, 26, 0.95); }
+html[data-mode="dark"] .st-key-bottomnav { background: rgba(20, 16, 26, 0.95); }
 
 /* ---------- רגיעה: פחות תנועה על המסך ---------- */
 .score-card .ring, .tile, .chip.bad { animation: none; }
@@ -1266,7 +1266,7 @@ html[data-theme="night"] .st-key-bottomnav { background: rgba(20, 16, 26, 0.95);
 .hero > .orb { position: absolute; left: 1.6rem; top: 50%; z-index: 0; }
 .warn-chips span { color: #6B4C14 !important; background: rgba(185, 138, 62, 0.16) !important; border: 1px solid rgba(185, 138, 62, 0.5) !important; }
 .warn-head { color: #6B4C14; }
-html[data-theme="night"] .warn-chips span, html[data-theme="night"] .warn-head { color: #E4C9A0 !important; }
+html[data-mode="dark"] .warn-chips span, html[data-mode="dark"] .warn-head { color: #E4C9A0 !important; }
 
 
 /* =====================================================================
@@ -1349,3 +1349,105 @@ html.just-entered #fx-bg { animation: fadein 2.4s ease 0.4s both; }
 @keyframes cardsheen { 0% { opacity: 0; transform: translateX(-140%) skewX(-18deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateX(380%) skewX(-18deg); } }
 @media (prefers-reduced-motion: reduce) { .ugchip, .scanner.done .sc-chips span { animation: none; } }
 .stButton > button[data-testid="stBaseButton-primary"], .stButton > button[data-testid="stBaseButton-primary"] p, .stButton > button[data-testid="stBaseButton-primary"] span { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF; text-shadow: 0 1px 6px rgba(30, 10, 40, 0.35); filter: none; }
+
+
+/* =====================================================================
+   מסך הבית בהמשך למסך הכניסה: שחור וזהב, הדמות במרכז הבמה
+   ===================================================================== */
+.hero .orb { display: none; }
+.hero { min-height: 15rem; padding-inline-start: 13rem; }
+.hero-mascot { position: absolute !important; left: 1.6rem; top: 50%; width: 10.5rem; height: 10.5rem; transform: translateY(-50%); z-index: 1; }
+.hero-mascot img { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55)); animation: bobslow 8s ease-in-out infinite; }
+.hero-mascot i { position: absolute; inset: -14%; border-radius: 50%; background: radial-gradient(circle, rgba(228, 201, 160, 0.55), transparent 66%); filter: blur(14px); animation: glow2 6s ease-in-out infinite; }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background: radial-gradient(520px 260px at 12% 50%, rgba(228, 201, 160, 0.18), transparent 70%), repeating-conic-gradient(from 0deg at 12% 50%, rgba(228, 201, 160, 0) 0 9deg, rgba(228, 201, 160, 0.05) 9.5deg 10deg); }
+@media (max-width: 700px) { .hero { padding-inline-start: 1.9rem; padding-top: 9.5rem; } .hero-mascot { left: 50%; top: 1.2rem; transform: translateX(-50%); width: 8rem; height: 8rem; } }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; margin: 0.9rem 0 0.4rem; }
+.stat { text-align: center; padding: 0.9rem 0.5rem; border-radius: var(--r-lg); background: var(--glass-strong); border: 1px solid var(--edge); animation: pop 0.7s var(--ease) both; animation-delay: calc(var(--i) * 120ms + 500ms); }
+.stat b { display: block; font: 900 clamp(1.5rem, 5vw, 2.2rem) var(--serif); color: var(--pink); direction: ltr; }
+.stat span { font-size: 0.78rem; letter-spacing: 0.04em; color: var(--muted); }
+
+.hero { background: var(--hero-bg) !important; border-color: rgba(228, 201, 160, 0.45) !important; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(201, 166, 107, 0.12) !important; }
+html[data-mode="dark"] .st-key-go_list button, html[data-mode="dark"] .st-key-go_product button, html[data-mode="dark"] .st-key-go_search button {
+    background: linear-gradient(160deg, rgba(40, 31, 48, 0.95), rgba(24, 18, 31, 0.95)) !important; border: 1px solid rgba(228, 201, 160, 0.28) !important;
+}
+html[data-mode="dark"] .st-key-go_list button:hover, html[data-mode="dark"] .st-key-go_product button:hover, html[data-mode="dark"] .st-key-go_search button:hover {
+    border-color: var(--gold) !important; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(201, 166, 107, 0.28) !important;
+}
+html[data-mode="dark"] .st-key-go_list button p strong, html[data-mode="dark"] .st-key-go_product button p strong, html[data-mode="dark"] .st-key-go_search button p strong { color: #F6EEE2 !important; }
+html[data-mode="dark"] .st-key-go_list button::before, html[data-mode="dark"] .st-key-go_product button::before, html[data-mode="dark"] .st-key-go_search button::before { border-color: rgba(228, 201, 160, 0.6); box-shadow: inset 0 0 0 5px rgba(228, 201, 160, 0.09), 0 0 24px rgba(201, 166, 107, 0.25); }
+html[data-mode="dark"] .ask { color: #F6EEE2; -webkit-text-fill-color: #F6EEE2; }
+html[data-mode="dark"] .stat b { color: var(--gold-l); }
+html[data-mode="dark"] .brand-name, html[data-mode="dark"] .brand-name b { color: #F6EEE2; -webkit-text-fill-color: #F6EEE2; }
+html[data-mode="dark"] .stButton > button:not([data-testid="stBaseButton-primary"]), html[data-mode="dark"] .stLinkButton > a { background: rgba(38, 31, 46, 0.9); color: #F3EDE4; border-color: rgba(228, 201, 160, 0.25) !important; }
+html[data-mode="dark"] .st-key-home_sample button { background: transparent; border-color: rgba(228, 201, 160, 0.6); color: var(--gold-l); }
+html[data-mode="dark"] .st-key-home_profile button { background: rgba(38, 31, 46, 0.7); }
+
+/* כפתור הכניסה: רוחב קבוע ולא על כל השורה */
+.st-key-enter button { width: auto !important; min-width: 16rem !important; max-width: 24rem; flex: 0 0 auto !important; }
+
+
+/* =====================================================================
+   חמש ערכות צבעים שונות באמת: שתיים בהירות ושלוש כהות
+   ===================================================================== */
+:root { --hero-bg: linear-gradient(135deg, #261530 0%, #432548 58%, #5E3556 100%); }
+html[data-theme="night"] { --hero-bg: linear-gradient(135deg, #1A1220 0%, #2E1C33 55%, #44263F 100%); }
+html[data-theme="emerald"] {
+    --bg: #07130F; --ink: #EAF3EE; --muted: #9DB8AB;
+    --pink: #3DBE8B; --pink-d: #7BE0B5; --p-rgb: 61, 190, 139;
+    --violet: #C9A66B; --violet-d: #E4C9A0; --v-rgb: 201, 166, 107;
+    --aqua: #6CC4D8; --aqua-d: #9ADCEA; --a-rgb: 108, 196, 216;
+    --g1: #1F7A5C; --g2: #3DBE8B; --g3: #C9A66B;
+    --aur1: 20, 110, 80; --aur2: 30, 80, 110; --aur3: 60, 130, 90; --aur4: 130, 110, 50;
+    --glass: rgba(14, 34, 28, 0.90); --glass-strong: rgba(20, 46, 38, 0.95);
+    --edge: rgba(120, 220, 180, 0.22); --shadow: 0, 0, 0; color-scheme: dark;
+    --grad-brand: linear-gradient(135deg, #1F7A5C 0%, #3DBE8B 60%, #C9A66B 125%);
+    --hero-bg: linear-gradient(135deg, #06201A 0%, #0E3A2D 55%, #1B5A44 100%);
+}
+html[data-theme="aurora"] {
+    --bg: #0E0820; --ink: #F3EEFF; --muted: #B6A8DA;
+    --pink: #FF4FA8; --pink-d: #FF86C4; --p-rgb: 255, 79, 168;
+    --violet: #8B5CFF; --violet-d: #B79CFF; --v-rgb: 139, 92, 255;
+    --aqua: #22D3EE; --aqua-d: #7DE6F5; --a-rgb: 34, 211, 238;
+    --g1: #FF4FA8; --g2: #8B5CFF; --g3: #22D3EE;
+    --aur1: 255, 60, 160; --aur2: 110, 60, 255; --aur3: 20, 200, 230; --aur4: 255, 120, 60;
+    --glass: rgba(26, 16, 52, 0.88); --glass-strong: rgba(38, 24, 74, 0.94);
+    --edge: rgba(255, 255, 255, 0.17); --shadow: 0, 0, 0; color-scheme: dark;
+    --grad-brand: linear-gradient(135deg, #FF4FA8 0%, #8B5CFF 55%, #22D3EE 120%);
+    --hero-bg: linear-gradient(135deg, #1B0B3A 0%, #3A1470 55%, #7A1D6E 100%);
+}
+html[data-theme="blush"] {
+    --bg: #FFF1F4; --ink: #3A1226; --muted: #7A4A5E;
+    --pink: #C2185B; --pink-d: #8E0F42; --p-rgb: 194, 24, 91;
+    --violet: #7B3FA0; --violet-d: #55257A; --v-rgb: 123, 63, 160;
+    --aqua: #B8832F; --aqua-d: #8A5F18; --a-rgb: 184, 131, 47;
+    --g1: #E83A82; --g2: #C2185B; --g3: #F59AB5;
+    --aur1: 255, 190, 210; --aur2: 255, 222, 232; --aur3: 252, 200, 185; --aur4: 238, 200, 235;
+    --glass: rgba(255, 255, 255, 0.93); --glass-strong: rgba(255, 255, 255, 0.97);
+    --edge: rgba(120, 20, 60, 0.18); --shadow: 150, 40, 90;
+    --grad-brand: linear-gradient(135deg, #E83A82 0%, #C2185B 60%, #7B3FA0 125%);
+    --hero-bg: linear-gradient(135deg, #8E0F42 0%, #C2185B 55%, #E8588F 100%);
+}
+/* גוונים קבועים שמתאימים לערכה */
+.orb i::after, .hero-mascot i { background-color: transparent; }
+html[data-theme="emerald"] .hero .badge, html[data-theme="aurora"] .hero .badge { color: var(--ink) !important; border-color: rgba(var(--p-rgb), 0.7) !important; }
+html[data-theme="blush"] .hero .badge, html[data-theme="blush"] .hero .steps span b, html[data-theme="blush"] .hero .steps .arr { color: #FFE3EC !important; }
+html[data-theme="blush"] .hero h1 { color: #FFF; -webkit-text-fill-color: #FFF !important; }
+html[data-theme="blush"] .hero-mascot i { background: radial-gradient(circle, rgba(255, 255, 255, 0.55), transparent 66%); }
+
+/* כפתור מצב כהה / בהיר */
+.mode-fab { position: fixed; left: 4.3rem; bottom: 1rem; z-index: 99999; width: 2.8rem; height: 2.8rem; border-radius: 50%; border: 1px solid var(--edge); cursor: pointer; display: grid; place-items: center; font-size: 1.1rem; color: var(--ink); background: var(--glass-strong); box-shadow: var(--sh-2); transition: transform 0.25s var(--ease); }
+.mode-fab:hover { transform: scale(1.08) rotate(-12deg); }
+.theme-tip { left: 7.8rem; }
+body:has(.gate) .mode-fab { display: none !important; }
+@media (max-width: 700px) { .mode-fab { bottom: 5.6rem; left: 4.3rem; width: 2.8rem; height: 2.8rem; } .theme-tip { bottom: 6rem; } }
+.hero { padding-inline-start: 1.9rem !important; padding-left: 13rem; }
+@media (max-width: 700px) { .hero { padding-left: 1.9rem; padding-top: 9.5rem; } }
+html[data-mode="dark"] .st-key-go_list button, html[data-mode="dark"] .st-key-go_product button, html[data-mode="dark"] .st-key-go_search button {
+    background: linear-gradient(160deg, rgba(var(--p-rgb), 0.16), rgba(var(--v-rgb), 0.10)), var(--glass-strong) !important;
+    border: 1px solid rgba(var(--p-rgb), 0.38) !important;
+}
+
+html[data-mode="dark"] [data-testid="stDialog"] div[role="dialog"] { background-image: linear-gradient(var(--bg), var(--bg)), linear-gradient(135deg, var(--gold), transparent 60%, var(--gold)) !important; }
+html[data-mode="dark"] .ring::before { background: var(--bg); }

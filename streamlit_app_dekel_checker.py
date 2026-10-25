@@ -1283,20 +1283,36 @@ def brand_html(size="md"):
     )
 
 
-HERO_HTML = """
-<div class="hero">
-    <div class="orb" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-    <div class="scan"></div>
-    <div class="badge"><i></i>SKINCARE LAB</div>
-    <h1>בדיקת רכיבים</h1>
-    <p>בחרי איך להתחיל, והמערכת תסרוק כל רכיב ותסביר מה באמת יש במוצר.</p>
-    <div class="steps">
-        <span><b>01</b> צילום</span><i class="arr">←</i>
-        <span><b>02</b> סריקה</span><i class="arr">←</i>
-        <span><b>03</b> הבנה</span>
-    </div>
-</div>
-"""
+def hero_html():
+    mascot = (
+        f'<div class="hero-mascot"><i></i><img alt="" src="data:image/webp;base64,{_mascot_b64}"></div>'
+        if _mascot_b64 else ""
+    )
+    return (
+        '<div class="hero">' + mascot +
+        '<div class="badge"><i></i>SKINCARE LAB</div>'
+        '<h1>בדיקת רכיבים</h1>'
+        '<p>בחרי איך להתחיל, והמערכת תסרוק כל רכיב ותסביר מה באמת יש במוצר.</p>'
+        '<div class="steps"><span><b>01</b> צילום</span><i class="arr">←</i>'
+        '<span><b>02</b> סריקה</span><i class="arr">←</i><span><b>03</b> הבנה</span></div></div>'
+    )
+
+
+def stats_html():
+    index = load_catalog_index() or {}
+    products = index.get("products", [])
+    verified = sum(1 for entry in products if entry.get("verified"))
+    ingredients = len(load_ingredient_db().get("ingredients", {}))
+    items = (
+        (len(products), "מוצרים בקטלוג"), (verified, "מאושרי Dekel Verified"), (ingredients, "רכיבים מדורגים"),
+    )
+    cells = "".join(
+        f'<div class="stat" style="--i:{n}"><b class="num" data-t="{value}">{value}</b><span>{html.escape(label)}</span></div>'
+        for n, (value, label) in enumerate(items)
+    )
+    return f'<div class="stats">{cells}</div>'
+
+
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
@@ -2669,7 +2685,8 @@ SAMPLE_SLUG = "the-ordinary-glycolic-acid-7-exfoliating-toner"
 
 
 def tab_home():
-    st.markdown(HERO_HTML, unsafe_allow_html=True)
+    st.markdown(hero_html(), unsafe_allow_html=True)
+    st.markdown(stats_html(), unsafe_allow_html=True)
     st.markdown('<div class="ask">מה את רוצה לבדוק?</div>', unsafe_allow_html=True)
     first, second, third = st.columns(3)
     if first.button("**צילום רשימת רכיבים**  \nהטקסט הקטן בגב האריזה", key="go_list", use_container_width=True):
@@ -2689,6 +2706,17 @@ def tab_home():
     )):
         if col.button(label, key=key, use_container_width=True):
             go_to(tab)
+
+    recent = st.session_state.history[:4]
+    if recent:
+        st.markdown('<div class="ask small">המשיכי מאיפה שעצרת</div>', unsafe_allow_html=True)
+        for column, entry in zip(st.columns(len(recent)), recent):
+            with column:
+                if entry["thumb"]:
+                    st.image(entry["thumb"], width=84)
+                st.caption(entry["title"][:28])
+                if st.button("פתחי", key=f"home_recent_{entry['key']}"[:60], use_container_width=True):
+                    open_history_entry(entry)
 
     profile_label = "🧬 הפרופיל שלי" + ("  ✓" if not skinprofile.is_empty(st.session_state.profile) else "  (חדש)")
     if st.button(profile_label, key="home_profile", use_container_width=True):

@@ -552,18 +552,23 @@
 (function () {
     if (window.__dekelTheme) return;
     window.__dekelTheme = true;
-    var THEMES = [['pearl', 'אטלייה'], ['mint', 'סייג׳'], ['peach', 'רוזווד'], ['night', 'נואר']];
+    var THEMES = [['night', 'נואר'], ['pearl', 'אטלייה'], ['emerald', 'אמרלד'], ['blush', 'בלאש'], ['aurora', 'אורורה']];
+    var DARK = { night: 1, emerald: 1, aurora: 1 };
     var KEY = 'dekel_theme';
     var root = document.documentElement;
     var index = 0;
     try {
         var saved = window.localStorage.getItem(KEY);
+        if (!saved && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches) saved = 'pearl';
         for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === saved) index = i;
     } catch (e) {}
 
     function apply(show) {
         var name = THEMES[index][0];
-        if (name === 'pearl') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', name);
+        root.setAttribute('data-theme', name);
+        if (DARK[name]) root.setAttribute('data-mode', 'dark'); else root.setAttribute('data-mode', 'light');
+        mode.textContent = DARK[name] ? '☀️' : '🌙';
+        mode.title = DARK[name] ? 'מצב בהיר' : 'מצב כהה';
         try { window.localStorage.setItem(KEY, name); } catch (e) {}
         if (window.__dekelReadTheme) window.__dekelReadTheme();
         if (show) {
@@ -580,9 +585,19 @@
     button.title = 'החלפת ערכת צבעים';
     button.setAttribute('aria-label', 'החלפת ערכת צבעים');
     button.textContent = '🎨';
+    var mode = document.createElement('button');
+    mode.className = 'mode-fab';
+    mode.type = 'button';
+    mode.setAttribute('aria-label', 'מעבר בין מצב כהה לבהיר');
     var tip = document.createElement('div');
     tip.className = 'theme-tip';
     document.body.appendChild(button);
+    document.body.appendChild(mode);
+    mode.addEventListener('click', function () {
+        var wantDark = !DARK[THEMES[index][0]];
+        for (var k = 0; k < THEMES.length; k++) if (!!DARK[THEMES[k][0]] === wantDark) { index = k; break; }
+        apply(true);
+    });
     document.body.appendChild(tip);
     button.addEventListener('click', function () {
         index = (index + 1) % THEMES.length;
