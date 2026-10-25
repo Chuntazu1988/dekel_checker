@@ -19,6 +19,7 @@ from playwright.sync_api import sync_playwright
 from PIL import Image, ImageOps, ImageFilter
 import easyocr
 
+from hebrew import has_hebrew, ingredient_matches, ingredient_options
 from compat import (
     ACTIVE_NAMES,
     EXFOLIANTS,
@@ -1208,6 +1209,7 @@ def reset_all():
     st.session_state.celebrate_id = None
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
+    st.session_state.ing_choices = []
     st.session_state.product_lines = []
     st.session_state.product_pool = {}
     st.session_state.product_rejected = []
@@ -1263,6 +1265,8 @@ if "product_hits" not in st.session_state:
     st.session_state.product_hits = None
 if "nf_pending" not in st.session_state:
     st.session_state.nf_pending = None
+if "ing_choices" not in st.session_state:
+    st.session_state.ing_choices = []
 
 if st.session_state.celebrate_id:
     st.markdown(
@@ -1665,6 +1669,23 @@ CONFLICTS_URL = "https://thedekel.co.il/ingredients_conflicts/"
 TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_COUPONS = "📋 צילום רשימת רכיבים", "📦 צילום המוצר עצמו", "🤝 שילובים", "🎟️ קופונים"
 
 
+@st.cache_data(show_spinner=False)
+def product_search_options():
+    """אפשרויות להשלמה אוטומטית של חיפוש מוצר: שמות (בעברית ובאנגלית) מהקטלוג המקומי."""
+    options = {}
+    for entry in (load_catalog_index() or {}).get("products", []):
+        brand = entry["company"].split("|")[-1].strip()
+        for name in (entry["name"], entry.get("name2", "")):
+            if name:
+                options.setdefault(f"{name} · {brand}" if brand else name, name)
+    return options
+
+
+@st.cache_data(show_spinner=False)
+def ingredient_search_options():
+    return ingredient_options(load_ingredient_db()["ingredients"])
+
+
 def _name_tokens(text):
     return {t for t in re.findall(r"[a-z0-9\u0590-\u05ff]+", (text or "").lower()) if t not in STOPWORDS}
 
@@ -1908,18 +1929,39 @@ def tab_ingredients():
 
     with st.container(border=True):
         section("🔎", "חיפוש רכיב בודד", "כותבים שם של רכיב באנגלית, למשל Niacinamide")
-        ingredient_name = st.text_input(
+        ingredient_name = st.selectbox(
             "הכניסי רכיב:",
+            ingredient_search_options(),
+            index=None,
+            accept_new_options=True,
             label_visibility="collapsed",
-            placeholder="Niacinamide",
+            placeholder="התחילי להקליד, בעברית או באנגלית: גליצרין, Niacinamide...",
             key=f"manual_{st.session_state.manual_key}",
         )
 
         if st.button("חפשי רכיב"):
-            if ingredient_name.strip():
-                show_result(ingredient_name.strip())
-            else:
+            query = (ingredient_name or "").strip()
+            st.session_state.ing_choices = []
+            if not query:
                 st.warning("נא להזין שם רכיב")
+            elif has_hebrew(query):
+                matches = ingredient_matches(query, load_ingredient_db()["ingredients"])
+                if not matches:
+                    st.info("לא מצאתי רכיב בשם הזה. נסי לכתוב את שמו באנגלית, או חלק אחר מהשם.")
+                elif len(matches) == 1:
+                    show_result(matches[0])
+                else:
+                    st.session_state.ing_choices = matches
+            else:
+                show_result(query)
+
+        if st.session_state.ing_choices:
+            st.caption("נמצאו כמה רכיבים מתאימים, בחרי אחד:")
+            for index, name in enumerate(st.session_state.ing_choices):
+                if st.button(name, key=f"ingc_{index}"):
+                    st.session_state.selected_ingredient = name
+                    st.session_state.ing_choices = []
+                    st.rerun()
 
 
 def tab_product():
@@ -1945,16 +1987,21 @@ def tab_product():
 
     with st.container(border=True):
         section("🏷️", "האם המוצר מאושר דקל?", "חפשי מוצר לפי שם או מותג ונבדוק אם הוא Dekel Verified")
-        product_term = st.text_input(
+        product_options = product_search_options()
+        product_choice = st.selectbox(
             "שם מוצר או מותג",
+            list(product_options),
+            index=None,
+            accept_new_options=True,
             label_visibility="collapsed",
-            placeholder="The Ordinary, CeraVe, Cetaphil...",
+            placeholder="התחילי להקליד, בעברית או באנגלית: סרווה, The Ordinary, CeraVe...",
             key=f"product_{st.session_state.manual_key}",
         )
+        product_term = product_options.get(product_choice, product_choice or "")
 
         if st.button("בדקי מוצר", key="product_search"):
-            if len(product_term.strip()) < 2:
-                st.warning("נא להזין שם מוצר או מותג")
+            if len(product_term.strip()) < 3:
+                st.warning("נא להזין לפחות 3 אותיות משם המוצר או המותג")
             else:
                 try:
                     with st.spinner("מחפשת בקטלוג של דקל..."):
