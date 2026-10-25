@@ -2584,6 +2584,43 @@ def go_to(tab):
     st.rerun()
 
 
+@st.dialog("📷 מה מצלמים?")
+def camera_dialog():
+    st.caption("בחרי מה את מצלמת, ונפתח לך את ההעלאה. בטלפון תוכלי לבחור 'צילום' ישירות במצלמה.")
+    if st.button("📋 את רשימת הרכיבים בגב האריזה", key="cam_list", use_container_width=True):
+        go_to(TAB_INGREDIENTS)
+    if st.button("📦 את המוצר עצמו (חזית האריזה)", key="cam_product", use_container_width=True):
+        go_to(TAB_PRODUCT)
+
+
+@st.dialog("עוד")
+def more_dialog():
+    for label, tab, key in (
+        ("🤝 שילובים", TAB_COMPAT, "more_compat"),
+        ("🎟️ קופונים והטבות", TAB_COUPONS, "more_coupons"),
+        ("📋 צילום רשימת רכיבים", TAB_INGREDIENTS, "more_list"),
+        ("📦 צילום המוצר עצמו", TAB_PRODUCT, "more_product"),
+    ):
+        if st.button(label, key=key, use_container_width=True):
+            go_to(tab)
+
+
+def render_bottom_nav(active):
+    """סרגל ניווט קבוע בתחתית המסך (מוצג רק בטלפון)."""
+    history_label = "היסטוריה" + (" 🔔" if "🔔" in nav_label(TAB_HISTORY) else "")
+    items = (
+        ("bn_home", "🏠", "בית", lambda: go_to(TAB_HOME), active == TAB_HOME),
+        ("bn_routine", "🗓️", "שגרה", lambda: go_to(TAB_ROUTINE), active == TAB_ROUTINE),
+        ("bn_camera", "📷", "צילום", camera_dialog, False),
+        ("bn_history", "🕘", history_label, lambda: go_to(TAB_HISTORY), active == TAB_HISTORY),
+        ("bn_more", "⋯", "עוד", more_dialog, active in (TAB_COMPAT, TAB_COUPONS)),
+    )
+    with st.container(key="bottomnav"):
+        for column, (key, icon, label, action, on) in zip(st.columns(len(items)), items):
+            if column.button(f"{icon}  \n{label}", key=key + ("_on" if on else ""), use_container_width=True):
+                action()
+
+
 SAMPLE_SLUG = "the-ordinary-glycolic-acid-7-exfoliating-toner"
 
 
@@ -2673,6 +2710,8 @@ elif st.session_state.history:
     TAB_HISTORY: tab_history,
     TAB_COUPONS: tab_coupons,
 }[active_tab]()
+
+render_bottom_nav(active_tab)
 
 st.markdown(
     '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'
