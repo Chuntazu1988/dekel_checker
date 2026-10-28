@@ -2326,3 +2326,9 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 .cx-chip .cx-img { width: 46px; height: 46px; flex: 0 0 46px; object-fit: contain; border-radius: 10px; background: #fff; }
 .cx-chip .cx-t { display: flex; flex-direction: column; min-width: 0; gap: 0.1rem; }
 .cx-chip .cx-t b { white-space: normal; }
+
+/* מתג: הכפתור העגול נשאר בתוך המסילה גם ב-RTL */
+[data-testid="stToggle"] [data-baseweb="checkbox"] > span:first-of-type,
+[data-testid="stToggle"] [data-baseweb="checkbox"] > div:first-of-type { direction: ltr !important; overflow: hidden; }
+[data-testid="stToggle"] [data-baseweb="checkbox"] > span:first-of-type > div,
+[data-testid="stToggle"] [data-baseweb="checkbox"] > div:first-of-type > div { direction: ltr !important; }
