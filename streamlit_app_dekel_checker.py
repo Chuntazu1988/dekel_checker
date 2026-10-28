@@ -3481,11 +3481,12 @@ def tab_home():
     recent = st.session_state.history[:4]
     if recent:
         st.markdown('<div class="ask small">המשיכי מאיפה שעצרת</div>', unsafe_allow_html=True)
-        for column, entry in zip(st.columns(len(recent)), recent):
+        for column, entry in zip(st.columns(4), recent):
             with column:
+                catalog_img = cx_img((entry.get("product") or {}).get("slug", ""), "")
                 photo = (
                     f'<img alt="" src="data:image/jpeg;base64,{base64.b64encode(entry["thumb"]).decode("ascii")}">'
-                    if entry["thumb"] else '<span class="feat-ph">🧴</span>'
+                    if entry["thumb"] else (catalog_img or '<span class="feat-ph">🧴</span>')
                 )
                 st.markdown(
                     f'<div class="feat recent"><div class="feat-photo">{photo}</div>'
