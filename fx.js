@@ -31,10 +31,18 @@
     ];
 
     window.__dekelReadTheme = function () { readThemeColors(); };
+    function spawnX() {
+        // במסך רחב: הצפים מופיעים בשוליים משני צדי העמודה המרכזית, כדי לא לכסות טקסט
+        var half = 410, gutter = W / 2 - half;
+        if (gutter < 70) return Math.random() * W;
+        var left = Math.random() < 0.5;
+        return left ? Math.random() * (gutter - 40) + 20 : W - (Math.random() * (gutter - 40) + 20);
+    }
+
     function newBubble(fromBottom) {
         var r = Math.random() * 20 + 7;
         return {
-            x: Math.random() * W, y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
+            x: spawnX(), y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
             r: r, vy: -(Math.random() * 0.10 + 0.03), ph: Math.random() * 6.28,
             t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0, kind: Math.random() < 0.6 ? 0 : 1, tilt: (Math.random() - 0.5) * 0.8
         };
@@ -56,7 +64,7 @@
         var size = Math.random() * 22 + 22;
         return {
             e: ICONS[Math.floor(Math.random() * ICONS.length)], s: size,
-            x: Math.random() * W, y: fromBottom ? H + size + Math.random() * 120 : Math.random() * H,
+            x: spawnX(), y: fromBottom ? H + size + Math.random() * 120 : Math.random() * H,
             vy: -(Math.random() * 0.09 + 0.03), ph: Math.random() * 6.28, rot: (Math.random() - 0.5) * 0.9,
             a: Math.random() * 0.12 + 0.16
         };
@@ -149,7 +157,7 @@
 
     function drawBubble(q, now) {
         var wob = Math.sin(now * 0.0005 + q.ph);
-        var x = q.x + wob * 14, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = (1 - q.pop);
+        var x = q.x + wob * 8, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = (1 - q.pop);
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(wob * 0.28 + q.tilt);

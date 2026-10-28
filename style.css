@@ -2305,3 +2305,10 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 [role="dialog"] .ring .val { direction: ltr; }
 [role="dialog"] .stage-name, [role="dialog"] .stage-brand { text-align: right; }
 [role="dialog"] .warn-chips, [role="dialog"] .pn-chips { justify-content: flex-start; }
+
+/* שדות בחירה: שמות ארוכים נשברים לשורה שנייה ולא נחתכים */
+[data-baseweb="select"] > div { height: auto !important; min-height: 3.1rem; }
+[data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"], [data-baseweb="select"] div[value], [data-baseweb="select"] > div > div:first-child {
+    white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.35; padding-block: 0.45rem;
+}
+[data-baseweb="select"] input { text-overflow: ellipsis; }
