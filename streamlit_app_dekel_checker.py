@@ -1190,7 +1190,7 @@ def compat_group_html(rows, with_reasons, chosen):
             brand = entry["company"].split("|")[-1].strip()
             chips.append(
                 f'<a class="cx-chip" href="{html.escape(url)}" target="_blank" rel="noopener">'
-                f'{"<img class=cx-img alt= src=" + chr(34) + thumb_uri(entry["slug"]) + chr(34) + ">" if thumb_uri(entry["slug"]) else ""}'
+                f'{cx_img(entry["slug"])}'
                 f'<span class="cx-t"><b>{html.escape(entry["name"])}</b><small>{html.escape(brand)}</small></span></a>'
             )
         reasons = ""
@@ -1444,6 +1444,11 @@ def load_thumbs():
 def thumb_uri(slug):
     data = load_thumbs().get(slug or "")
     return f"data:image/webp;base64,{data}" if data else ""
+
+
+def cx_img(slug):
+    uri = thumb_uri(slug)
+    return f'<img class="cx-img" alt="" src="{uri}">' if uri else ""
 
 
 def picture_uri(product):

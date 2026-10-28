@@ -2321,3 +2321,8 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
   [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:nth-child(3) { display: none !important; }
   [data-testid="stHorizontalBlock"]:has(.st-key-restart) button, [data-testid="stHorizontalBlock"]:has(.st-key-restart) a { font-size: 0.82rem !important; padding: 0.3rem 0.8rem !important; min-height: 2.2rem !important; }
 }
+
+/* תמונות ושמות בקוביות מוצרים */
+.cx-chip .cx-img { width: 46px; height: 46px; flex: 0 0 46px; object-fit: contain; border-radius: 10px; background: #fff; }
+.cx-chip .cx-t { display: flex; flex-direction: column; min-width: 0; gap: 0.1rem; }
+.cx-chip .cx-t b { white-space: normal; }
