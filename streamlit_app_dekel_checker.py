@@ -1446,9 +1446,9 @@ def thumb_uri(slug):
     return f"data:image/webp;base64,{data}" if data else ""
 
 
-def cx_img(slug):
+def cx_img(slug, cls="cx-img"):
     uri = thumb_uri(slug)
-    return f'<img class="cx-img" alt="" src="{uri}">' if uri else ""
+    return f'<img class="{cls}" alt="" src="{uri}">' if uri else ""
 
 
 def picture_uri(product):
@@ -3126,7 +3126,7 @@ def routine_slot_html(title, icon, items):
         return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div><div class="cx-empty">אין מוצרים.</div></div>'
     rows = "".join(
         f'<div class="rt-item"><span class="rt-n">{index}</span>'
-        f'{("<img class=rt-img alt= src=" + chr(34) + thumb_uri(entry["slug"]) + chr(34) + ">") if thumb_uri(entry["slug"]) else ""}'
+        f'{cx_img(entry["slug"], "rt-img")}'
         f'<div><b>{html.escape(entry["name"])}</b>'
         f'<small>{html.escape(entry["company"].split("|")[-1].strip())} · '
         f'{html.escape(" / ".join(categories_of(entry)))}</small></div></div>'
