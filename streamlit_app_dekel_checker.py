@@ -1298,6 +1298,59 @@ def brand_html(size="md"):
     )
 
 
+THUMBS_PATH = Path(__file__).parent / "data" / "thumbs.json"
+
+
+@st.cache_resource(show_spinner=False)
+def load_thumbs():
+    try:
+        return json.loads(THUMBS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def thumb_uri(slug):
+    data = load_thumbs().get(slug or "")
+    return f"data:image/webp;base64,{data}" if data else ""
+
+
+def picture_uri(product):
+    """תמונת מוצר: מהחיפוש אם קיימת, ואם לא מהמאגר המקומי."""
+    picture = (product or {}).get("picture", "")
+    if picture and re.fullmatch(r"[A-Za-z0-9+/=]+", picture):
+        mime = "image/webp" if picture.startswith("UklGR") else "image/png" if picture.startswith("iVBOR") else "image/jpeg"
+        return f"data:{mime};base64,{picture}"
+    return thumb_uri((product or {}).get("slug"))
+
+
+def showcase_slugs(count, offset=0):
+    """מוצרים מאושרים עם תמונה, בסדר יציב שמתחלף מדי יום."""
+    thumbs = load_thumbs()
+    verified = sorted(e["slug"] for e in (load_catalog_index() or {}).get("products", []) if e.get("verified") and e["slug"] in thumbs)
+    if not verified:
+        return []
+    shift = (datetime.date.today().toordinal() * 7 + offset) % len(verified)
+    rotated = verified[shift:] + verified[:shift]
+    return rotated[:count]
+
+
+def marquee_html():
+    by_slug = routine_entries_by_slug()
+
+    def row(slugs, reverse):
+        items = "".join(
+            f'<figure><img alt="" src="{thumb_uri(slug)}"><figcaption>'
+            f'{html.escape(by_slug[slug]["company"].split("|")[-1].strip())}</figcaption></figure>'
+            for slug in slugs if slug in by_slug
+        )
+        return f'<div class="mq-row{" rev" if reverse else ""}"><div class="mq-track">{items}{items}</div></div>'
+
+    slugs = showcase_slugs(26)
+    if len(slugs) < 8:
+        return ""
+    return f'<div class="marquee">{row(slugs[:13], False)}{row(slugs[13:], True)}</div>'
+
+
 def hero_html():
     mascot = (
         f'<div class="hero-mascot"><i></i><img alt="" src="data:image/webp;base64,{_mascot_b64}"></div>'
@@ -1305,9 +1358,9 @@ def hero_html():
     )
     return (
         '<div class="hero">' + mascot +
-        '<div class="badge"><i></i>SKINCARE LAB</div>'
-        '<h1>בדיקת רכיבים</h1>'
-        '<p>בחרי איך להתחיל, והמערכת תסרוק כל רכיב ותסביר מה באמת יש במוצר.</p>'
+        '<div class="badge"><i></i>THE INGREDIENT ATELIER</div>'
+        '<h1>מה באמת<br>יש במוצר שלך?</h1>'
+        '<p>מצלמים, והמערכת קוראת כל רכיב, מדרגת אותו לפי דקל ומתאימה אותו אלייך.</p>'
         '<div class="steps"><span><b>01</b> צילום</span><i class="arr">←</i>'
         '<span><b>02</b> סריקה</span><i class="arr">←</i><span><b>03</b> הבנה</span></div></div>'
     )
@@ -1808,6 +1861,9 @@ def table_dialog(checked):
 def result_dialog(names):
     checked = [name for name in names if name in st.session_state.results]
     results = [st.session_state.results[name] for name in checked]
+    product = st.session_state.selected_product
+    if product and product.get("source") != "obf":
+        st.markdown(product_stage_html(product), unsafe_allow_html=True)
     for card in (
         score_card_html(results),
         key_points_html(checked, st.session_state.results, st.session_state.product_meta),
@@ -2275,6 +2331,23 @@ def render_candidates():
             search_by_typed_name(typed.strip())
 
 
+def product_stage_html(product):
+    img = picture_uri(product)
+    photo = f'<div class="stage-photo"><i></i><img alt="{html.escape(product["name"])}" src="{img}"></div>' if img else ""
+    verified = product.get("verified", True)
+    seal = '<span class="dv-seal"><i>✔</i> DEKEL VERIFIED</span>' if verified else '<span class="dv-no">לא עומד בתקן Dekel Verified</span>'
+    name2 = f'<div class="stage-name2">{html.escape(product["name2"])}</div>' if product.get("name2") else ""
+    link = ""
+    if product.get("slug"):
+        url = "https://thedekel.co.il/product-verified/?slug=" + quote(product["slug"])
+        link = f'<a class="plink" href="{html.escape(url)}" target="_blank" rel="noopener">לעמוד המוצר באתר דקל ↗</a>'
+    brand = product.get("company", "").split("|")[-1].strip()
+    return (
+        f'<div class="stage">{photo}<div class="stage-text"><div class="stage-brand">{html.escape(brand)}</div>'
+        f'<div class="stage-name">{html.escape(product["name"])}</div>{name2}<div class="stage-seal">{seal}</div>{link}</div></div>'
+    )
+
+
 def selected_product_banner():
     product = st.session_state.selected_product
     if not product:
@@ -2283,7 +2356,7 @@ def selected_product_banner():
         label = f"{product.get('company', '')} · {product['name']}".strip(" ·")
         st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
     else:
-        st.markdown(product_card_html(product), unsafe_allow_html=True)
+        st.markdown(product_stage_html(product), unsafe_allow_html=True)
         if product.get("slug") and product["slug"] in routine_entries_by_slug():
             if product["slug"] in st.session_state.routine:
                 st.caption("✔ המוצר כבר בשגרה שלך")
@@ -2532,7 +2605,9 @@ def routine_slot_html(title, icon, items):
     if not items:
         return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div><div class="cx-empty">אין מוצרים.</div></div>'
     rows = "".join(
-        f'<div class="rt-item"><span class="rt-n">{index}</span><div><b>{html.escape(entry["name"])}</b>'
+        f'<div class="rt-item"><span class="rt-n">{index}</span>'
+        f'{("<img class=rt-img alt= src=" + chr(34) + thumb_uri(entry["slug"]) + chr(34) + ">") if thumb_uri(entry["slug"]) else ""}'
+        f'<div><b>{html.escape(entry["name"])}</b>'
         f'<small>{html.escape(entry["company"].split("|")[-1].strip())} · '
         f'{html.escape(" / ".join(categories_of(entry)))}</small></div></div>'
         for index, entry in enumerate(items, 1)
@@ -2716,6 +2791,7 @@ SAMPLE_SLUG = "the-ordinary-glycolic-acid-7-exfoliating-toner"
 
 def tab_home():
     st.markdown(hero_html(), unsafe_allow_html=True)
+    st.markdown(marquee_html(), unsafe_allow_html=True)
     st.markdown(stats_html(), unsafe_allow_html=True)
     st.markdown('<div class="ask">מה את רוצה לבדוק?</div>', unsafe_allow_html=True)
     first, second, third = st.columns(3)
@@ -2736,6 +2812,26 @@ def tab_home():
     )):
         if col.button(label, key=key, use_container_width=True):
             go_to(tab)
+
+    featured = showcase_slugs(4, offset=3)
+    if featured:
+        by_slug = routine_entries_by_slug()
+        st.markdown('<div class="ask">מוצרים נבחרים מהקטלוג</div>', unsafe_allow_html=True)
+        for column, slug in zip(st.columns(len(featured)), featured):
+            entry = by_slug[slug]
+            with column:
+                brand = entry["company"].split("|")[-1].strip()
+                st.markdown(
+                    f'<div class="feat"><div class="feat-photo"><img alt="" src="{thumb_uri(slug)}"></div>'
+                    f'<div class="feat-brand">{html.escape(brand)}</div><div class="feat-name">{html.escape(entry["name"])}</div>'
+                    f'<div class="feat-tag">{html.escape(" · ".join(categories_of(entry)[:1]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("בדקי", key=f"feat_{slug}"[:60], use_container_width=True):
+                    choose_dekel_product({
+                        "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"],
+                        "description": "", "slug": slug, "picture": "", "verified": True,
+                    })
 
     recent = st.session_state.history[:4]
     if recent:
