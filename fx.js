@@ -169,17 +169,20 @@
             ctx.beginPath(); ctx.arc(-w * 0.35, level + h * 0.5, 1.6, 0, 6.2832); ctx.arc(w * 0.25, level + h * 0.9, 1.2, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fill();
             ctx.beginPath(); ctx.moveTo(-w * 0.55, -h * 0.7); ctx.lineTo(-w * 0.55, h * 0.1); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.4; ctx.stroke();
         } else {
-            var lr = r * 0.62, gap = r * 0.34;
-            ctx.beginPath(); ctx.moveTo(-lr * 2 - gap, 0); ctx.quadraticCurveTo(0, -lr * 1.2, lr * 2 + gap, 0);
-            ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.stroke();
-            for (var side = -1; side <= 1; side += 2) {
-                var cx = side * (lr + gap * 0.5);
-                ctx.beginPath(); ctx.ellipse(cx, 0, lr, lr * 0.8, 0, 0, 6.2832);
-                ctx.fillStyle = tint + '0.22)'; ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2.4; ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx - lr * 0.3, -lr * 0.25, lr * 0.28, lr * 0.14, -0.5, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
-            }
-            ctx.beginPath(); ctx.moveTo(-gap * 0.6, 0); ctx.lineTo(gap * 0.6, 0); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3; ctx.stroke();
+            var gw = r * 1.45, gh = r * 0.78;
+            ctx.beginPath(); ctx.moveTo(-gw - r * 0.5, 0); ctx.lineTo(-gw, 0); ctx.moveTo(gw, 0); ctx.lineTo(gw + r * 0.5, 0);
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-gw, -gh * 0.55); ctx.quadraticCurveTo(-gw * 0.5, -gh * 1.1, 0, -gh * 0.8);
+            ctx.quadraticCurveTo(gw * 0.5, -gh * 1.1, gw, -gh * 0.55);
+            ctx.lineTo(gw, gh * 0.45); ctx.quadraticCurveTo(gw * 0.55, gh * 1.05, gw * 0.18, gh * 0.55);
+            ctx.quadraticCurveTo(0, gh * 0.3, -gw * 0.18, gh * 0.55);
+            ctx.quadraticCurveTo(-gw * 0.55, gh * 1.05, -gw, gh * 0.45); ctx.closePath();
+            ctx.fillStyle = tint + '0.18)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            for (var v = 0; v < 3; v++) { ctx.beginPath(); ctx.arc(-gw + 5 + v * 4.5, -gh * 0.1, 1.3, 0, 6.2832); ctx.arc(gw - 5 - v * 4.5, -gh * 0.1, 1.3, 0, 6.2832); ctx.fill(); }
+            ctx.beginPath(); ctx.moveTo(-gw * 0.78, -gh * 0.45); ctx.lineTo(-gw * 0.3, -gh * 0.55); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
         }
         ctx.restore();
     }

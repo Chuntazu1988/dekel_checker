@@ -777,9 +777,12 @@ def render_coupon_alerts():
 
 def nav_label(tab):
     names = {
-        TAB_HOME: f"{NAV_ICONS['home']} בית", TAB_INGREDIENTS: f"{NAV_ICONS['list']} רשימת רכיבים",
-        TAB_PRODUCT: f"{NAV_ICONS['product']} צילום המוצר", TAB_COMPAT: f"{NAV_ICONS['compat']} שילובים",
-        TAB_ROUTINE: f"{NAV_ICONS['routine']} השגרה שלי", TAB_HISTORY: f"{NAV_ICONS['history']} היסטוריה",
+        TAB_HOME: f"{NAV_ICONS['home']} בית",
+        TAB_INGREDIENTS: f"{NAV_ICONS['list']} העלאת תמונת רכיבים",
+        TAB_PRODUCT: f"{NAV_ICONS['product']} העלאת תמונת מוצר",
+        TAB_COMPAT: f"{NAV_ICONS['compat']} שילובים",
+        TAB_ROUTINE: f"{NAV_ICONS['routine']} השגרה שלי",
+        TAB_HISTORY: f"{NAV_ICONS['history']} היסטוריה",
         TAB_COUPONS: f"{NAV_ICONS['coupons']} קופונים",
     }
     label = names.get(tab, tab)
@@ -2637,7 +2640,7 @@ def render_candidates():
     elif status == "error":
         st.error("לא הצלחתי לחפש את המוצר כרגע. נסי שוב בעוד רגע.")
     elif status == "wrong-list":
-        st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. כדי לבדוק את הרכיבים, עברי ללשונית צילום רשימת הרכיבים.")
+        st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. כדי לבדוק את הרכיבים, עברי ללשונית העלאת תמונת רכיבים.")
         if st.button("📋 למסך צילום רשימת הרכיבים", key="wl_go"):
             st.session_state.product_status = None
             go_to(TAB_INGREDIENTS)
@@ -2735,7 +2738,7 @@ def tab_ingredients():
     how_box(
         "📋", "צילום של רשימת הרכיבים",
         "מצלמות את הטקסט הקטן בגב האריזה (INGREDIENTS), והמערכת קוראת כל רכיב ומדרגת אותו. "
-        "אם אין לך את הגב של האריזה, עברי ללשונית 'צילום המוצר עצמו'.",
+        "אם אין לך את הגב של האריזה, עברי ללשונית 'העלאת תמונת מוצר'.",
     )
     with st.container(border=True):
         section("📸", "צילום רשימת הרכיבים", "מצלמות את הרכיבים שבאריזה, והמערכת קוראת אותם")
@@ -2767,7 +2770,7 @@ def tab_ingredients():
                 ingredients = split_ingredients(extracted_text.replace(";", ","))
                 hits, _total = ingredient_list_matches(extracted_text)
                 if hits < 2:
-                    st.error("לא זיהיתי כאן רשימת רכיבים. נראה שזו תמונה של המוצר עצמו (חזית האריזה). כדי לזהות את המוצר, עברי ללשונית צילום המוצר עצמו.")
+                    st.error("לא זיהיתי כאן רשימת רכיבים. נראה שזו תמונה של המוצר עצמו (חזית האריזה). כדי לזהות את המוצר, עברי ללשונית העלאת תמונת מוצר.")
                     st.session_state.wrong_photo = True
                     ingredients = []
                 if ingredients:
@@ -2827,7 +2830,7 @@ def tab_ingredients():
                     if st.button(f"בדקי {ing}", key=f"img_{ing}"):
                         st.session_state.selected_ingredient = ing
     else:
-        st.info("עוד אין רכיבים לבדיקה. צלמי רשימת רכיבים, או זהי מוצר בלשונית 'צילום המוצר עצמו'.")
+        st.info("עוד אין רכיבים לבדיקה. צלמי רשימת רכיבים, או זהי מוצר בלשונית 'העלאת תמונת מוצר'.")
 
     if st.session_state.selected_ingredient:
         show_result(st.session_state.selected_ingredient)
@@ -2875,7 +2878,7 @@ def tab_product():
         st.markdown(product_card_html(product), unsafe_allow_html=True)
         st.warning(
             "🚫 המוצר הזה לא Dekel Verified, ולכן אין לנו ממנו רשימת רכיבים ודירוגים מדקל. "
-            "אפשר לצלם את רשימת הרכיבים שבגב האריזה ולבדוק אותם בלשונית 'צילום רשימת רכיבים'."
+            "אפשר לצלם את רשימת הרכיבים שבגב האריזה ולבדוק אותם בלשונית 'העלאת תמונת רכיבים'."
         )
         left, right = st.columns(2)
         if left.button("📋 צלמי את רשימת הרכיבים", key="nv_to_list"):
@@ -2922,7 +2925,7 @@ def tab_product():
             if len(product_term.strip()) < 3:
                 st.warning("נא להזין לפחות 3 אותיות משם המוצר או המותג")
             elif product_term.count(",") >= 4:
-                st.error("נראה שהדבקת רשימת רכיבים ולא שם של מוצר. כדי לבדוק רכיבים, עברי ללשונית צילום רשימת הרכיבים.")
+                st.error("נראה שהדבקת רשימת רכיבים ולא שם של מוצר. כדי לבדוק רכיבים, עברי ללשונית העלאת תמונת רכיבים.")
             else:
                 try:
                     with st.spinner("מחפשת בקטלוג של דקל..."):
@@ -3059,7 +3062,7 @@ def routine_add_panel():
                 if len(term) < 3:
                     st.warning("נא להזין לפחות 3 אותיות")
                 elif term.count(",") >= 4:
-                    st.error("נראה שהדבקת רשימת רכיבים. כדי להוסיף מרשימת רכיבים, השתמשי בלשונית צילום רכיבים.")
+                    st.error("נראה שהדבקת רשימת רכיבים. כדי להוסיף מרשימת רכיבים, השתמשי בלשונית העלאת תמונת רכיבים.")
                 else:
                     try:
                         with st.spinner("מחפשת בקטלוג של דקל..."):
@@ -3084,7 +3087,7 @@ def routine_add_panel():
                 identify_product(photo.getvalue())
             status = st.session_state.product_status
             if status == "wrong-list":
-                st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. השתמשי בלשונית צילום רכיבים.")
+                st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. השתמשי בלשונית העלאת תמונת רכיבים.")
             elif status in ("none", "no-text"):
                 st.info("לא זיהיתי מוצר מהתמונה. נסי לצלם שוב מקרוב, או חפשי לפי שם.")
             if st.session_state.product_source == "dekel":
@@ -3105,7 +3108,7 @@ def routine_add_panel():
                     hits, _t = ingredient_list_matches(text)
                     ingredients = split_ingredients(text.replace(";", ","))
                 if hits < 2 or not ingredients:
-                    st.error("לא זיהיתי רשימת רכיבים בתמונה. נראה שזו תמונה של המוצר עצמו, אז השתמשי בלשונית צילום המוצר.")
+                    st.error("לא זיהיתי רשימת רכיבים בתמונה. נראה שזו תמונה של המוצר עצמו, אז השתמשי בלשונית העלאת תמונת מוצר.")
                 else:
                     with st.spinner("בודקת את הרכיבים..."):
                         st.session_state.results.update(search_many([i for i in ingredients if i not in st.session_state.results]))

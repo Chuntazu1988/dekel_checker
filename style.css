@@ -2251,3 +2251,11 @@ html[data-mode="light"] .cx-sum b { color: var(--pink-d); }
 .st-key-top_login_btn button, .st-key-top_logout button { border-radius: 999px !important; font-size: 0.85rem; white-space: nowrap; }
 .st-key-gate_login { display: flex !important; justify-content: center; }
 .st-key-gate_login, .st-key-gate_login [data-testid="stElementContainer"], .st-key-gate_login [data-testid="stButton"], .st-key-gate_login .stButton { display: flex !important; justify-content: center !important; width: 100% !important; }
+
+
+/* לשוניות ההעלאה מובחנות משאר הלשוניות: צבע זהב, וקו מפריד */
+.st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(2), .st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(3) { border-color: rgba(228, 201, 160, 0.55); background-image: linear-gradient(160deg, rgba(228, 201, 160, 0.14), transparent); position: relative; }
+.st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(2) { margin-inline-start: 0.9rem; }
+.st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(3) { margin-inline-end: 0.9rem; }
+.st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(2)::before { content: "העלאת תמונה"; position: absolute; top: -1.15rem; right: 0; font: 600 0.62rem var(--sans); letter-spacing: 0.12em; color: var(--gold); white-space: nowrap; }
+.st-key-nav { padding-top: 0.9rem; }
