@@ -2259,3 +2259,11 @@ html[data-mode="light"] .cx-sum b { color: var(--pink-d); }
 .st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(3) { margin-inline-end: 0.9rem; }
 .st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(2)::before { content: "העלאת תמונה"; position: absolute; top: -1.15rem; right: 0; font: 600 0.62rem var(--sans); letter-spacing: 0.12em; color: var(--gold); white-space: nowrap; }
 .st-key-nav { padding-top: 0.9rem; }
+.mq-item { display: block; text-decoration: none !important; color: inherit !important; cursor: pointer; flex: none; }
+.mq-item figure { margin: 0; }
+.mq-item:hover img { transform: translateY(-6px) scale(1.08); box-shadow: var(--sh-2), 0 0 0 2px rgba(201, 166, 107, 0.7); }
+
+.st-key-nav [data-testid="stButtonGroup"] > div > button:nth-of-type(2)::before { content: none !important; display: none !important; }
+.st-key-nav { padding-top: 0 !important; }
+.st-key-nav [data-testid="stButtonGroup"] button, .st-key-nav [data-testid="stButtonGroup"] button p { white-space: nowrap !important; }
+.st-key-nav [data-testid="stButtonGroup"] button { flex: 1 1 auto; min-width: 0; padding-inline: 0.7rem; }

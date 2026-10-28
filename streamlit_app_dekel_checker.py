@@ -778,8 +778,8 @@ def render_coupon_alerts():
 def nav_label(tab):
     names = {
         TAB_HOME: f"{NAV_ICONS['home']} בית",
-        TAB_INGREDIENTS: f"{NAV_ICONS['list']} העלאת תמונת רכיבים",
-        TAB_PRODUCT: f"{NAV_ICONS['product']} העלאת תמונת מוצר",
+        TAB_INGREDIENTS: f"{NAV_ICONS['list']} העלאת רכיבים",
+        TAB_PRODUCT: f"{NAV_ICONS['product']} העלאת מוצר",
         TAB_COMPAT: f"{NAV_ICONS['compat']} שילובים",
         TAB_ROUTINE: f"{NAV_ICONS['routine']} השגרה שלי",
         TAB_HISTORY: f"{NAV_ICONS['history']} היסטוריה",
@@ -1471,8 +1471,9 @@ def marquee_html():
 
     def row(slugs, reverse):
         items = "".join(
-            f'<figure><img alt="" src="{thumb_uri(slug)}"><figcaption>'
-            f'{html.escape(by_slug[slug]["company"].split("|")[-1].strip())}</figcaption></figure>'
+            f'<a class="mq-item" target="_blank" rel="noopener" title="{html.escape(by_slug[slug]["name"])}" '
+            f'href="https://thedekel.co.il/product-verified/?slug={quote(slug)}"><figure><img alt="{html.escape(by_slug[slug]["name"])}" src="{thumb_uri(slug)}"><figcaption>'
+            f'{html.escape(by_slug[slug]["company"].split("|")[-1].strip())}</figcaption></figure></a>'
             for slug in slugs if slug in by_slug
         )
         return f'<div class="mq-row{" rev" if reverse else ""}"><div class="mq-track">{items}{items}</div></div>'
