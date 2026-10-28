@@ -647,3 +647,25 @@
         setTimeout(function () { document.documentElement.classList.remove('just-entered'); }, 4200);
     }, true);
 })();
+
+// חשיפה בגלילה: פרקים, ספקטרום ורכיבים נכנסים כשהם מגיעים למסך
+(function () {
+    if (window.__dekelReveal) return;
+    window.__dekelReveal = true;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!('IntersectionObserver' in window) || reduce) {
+        document.documentElement.classList.add('no-reveal');
+        return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target); }
+        });
+    }, { threshold: 0.18, rootMargin: '0px 0px -6% 0px' });
+    function watch() {
+        var els = document.querySelectorAll('.reveal:not([data-w])');
+        for (var i = 0; i < els.length; i++) { els[i].setAttribute('data-w', '1'); io.observe(els[i]); }
+    }
+    new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
+    watch();
+})();

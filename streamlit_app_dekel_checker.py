@@ -1899,29 +1899,68 @@ def key_points_html(checked, results_map, meta):
     return f'<div class="kps">{items}</div>'
 
 
+def chapter_html(number, title, subtitle=""):
+    sub = f'<div class="chap-s">{html.escape(subtitle)}</div>' if subtitle else ""
+    return (
+        f'<div class="chap reveal"><span class="chap-n">{number}</span>'
+        f'<div><div class="chap-t">{html.escape(title)}</div>{sub}</div></div>'
+    )
+
+
+def _tone(result):
+    return f'{EMOJI_CLASS.get(result["emoji"], "other")} {grade_class(result)}'.strip()
+
+
+def spectrum_html(checked, results_map):
+    segments = "".join(
+        f'<i class="sg {_tone(results_map[name])}" style="--i:{index}" title="{html.escape(name)} · {html.escape(results_map[name]["rating"])}"></i>'
+        for index, name in enumerate(checked)
+    )
+    return (
+        '<div class="spectrum reveal"><div class="sp-bar">' + segments + '</div>'
+        '<div class="sp-axis"><span>מתחילת הרשימה (הריכוז הגבוה)</span><span>סוף הרשימה</span></div></div>'
+    )
+
+
+def ribbons_html(checked, results_map, limit=12):
+    rows = []
+    for index, name in enumerate(checked[:limit]):
+        result = results_map[name]
+        role = result.get("role") or "ללא תיאור תפקיד"
+        rows.append(
+            f'<div class="rib reveal {_tone(result)}" style="--i:{index}"><span class="rib-n">{index + 1:02d}</span>'
+            f'<div class="rib-main"><b>{html.escape(name)}</b><small>{html.escape(role)}</small></div>'
+            f'<span class="chip {_tone(result)}">{html.escape(result["emoji"])} {html.escape(result["rating"])}</span></div>'
+        )
+    return '<div class="ribbons">' + "".join(rows) + "</div>"
+
+
 def show_summary(ingredients):
     checked = [ing for ing in ingredients if ing in st.session_state.results]
     if not checked:
         return
 
-    results = [st.session_state.results[ing] for ing in checked]
+    results_map = st.session_state.results
+    results = [results_map[ing] for ing in checked]
     good = sum(r["emoji"] == "🟢" for r in results)
     caution = sum(r["emoji"] == "🟡" for r in results)
     bad = sum(r["emoji"] == "🔴" for r in results)
     other = len(results) - good - caution - bad
 
-    section("📊", "התוצאה", f"{len(results)} רכיבים נסרקו")
+    st.markdown(chapter_html("01", "הציון", f"{len(results)} רכיבים נסרקו"), unsafe_allow_html=True)
     for card in (
         score_card_html(results),
-        key_points_html(checked, st.session_state.results, st.session_state.product_meta),
-        personal_card_html(checked, st.session_state.results, st.session_state.product_meta),
-        warnings_card_html(checked, results),
+        key_points_html(checked, results_map, st.session_state.product_meta),
+        personal_card_html(checked, results_map, st.session_state.product_meta),
     ):
         if card:
             st.markdown(card, unsafe_allow_html=True)
     if skinprofile.is_empty(st.session_state.profile):
-        if st.button("🧬 רוצה התאמה אישית? הגדירי פרופיל עור", key="pf_prompt", use_container_width=True):
+        if st.button(f"{NAV_ICONS['profile']} רוצה התאמה אישית? הגדירי פרופיל עור", key="pf_prompt", use_container_width=True):
             profile_dialog()
+
+    st.markdown(chapter_html("02", "ספקטרום הרכיבים", "כל פס הוא רכיב אחד, לפי הסדר ברשימה"), unsafe_allow_html=True)
+    st.markdown(spectrum_html(checked, results_map), unsafe_allow_html=True)
     st.markdown(
         '<div class="tiles">'
         f'<div class="tile good"><div class="num" data-t="{good}">{good}</div><div class="lbl">טובים</div></div>'
@@ -1931,7 +1970,6 @@ def show_summary(ingredients):
         "</div>",
         unsafe_allow_html=True,
     )
-
     if good:
         counts = {name: sum(r["rating"] == name for r in results) for name in GRADE_CLASS}
         pills = "".join(
@@ -1941,22 +1979,29 @@ def show_summary(ingredients):
         )
         st.markdown(f'<div class="legend">הירוקים לפי דרגה: {pills}</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="ask small">לפירוט המלא</div>', unsafe_allow_html=True)
-    guide_col, groups_col, table_col = st.columns(3)
-    if guide_col.button("🧭 מדריך שימוש", key="open_guide", use_container_width=True):
-        guide_dialog(checked)
-    if groups_col.button("🗂️ מה כל רכיב עושה", key="open_groups", use_container_width=True):
-        groups_dialog(checked)
-    if table_col.button("🧾 כל הרכיבים", key="open_table", use_container_width=True):
-        table_dialog(checked)
+    st.markdown(chapter_html("03", "הרכיבים המובילים", "הרכיבים הראשונים ברשימה, שנמצאים בריכוז הגבוה ביותר"), unsafe_allow_html=True)
+    st.markdown(ribbons_html(checked, results_map), unsafe_allow_html=True)
+    if len(checked) > 12:
+        if st.button(f"{NAV_ICONS['list']} לכל {len(checked)} הרכיבים", key="open_table", use_container_width=True):
+            table_dialog(checked)
 
-    flagged = [ing for ing in checked if st.session_state.results[ing]["emoji"] in ("🟡", "🔴")]
-    if flagged:
-        section("⚡", "כדאי לשים לב", "רכיבים שמסומנים כ'על תנאי' או 'רע'")
+    warn = warnings_card_html(checked, results)
+    flagged = [ing for ing in checked if results_map[ing]["emoji"] in ("🟡", "🔴")]
+    if warn or flagged:
+        st.markdown(chapter_html("04", "כדאי לשים לב", "אזהרות ורכיבים שמסומנים 'על תנאי' או 'רע'"), unsafe_allow_html=True)
+        if warn:
+            st.markdown(warn, unsafe_allow_html=True)
         for ing in flagged:
-            r = st.session_state.results[ing]
+            r = results_map[ing]
             with st.expander(f"{r['emoji']} {ing} · {r['rating']}"):
                 render_result(ing, r)
+
+    st.markdown(chapter_html("05" if (warn or flagged) else "04", "איך להשתמש", "מתי, באיזו תדירות ועם מה לא לשלב"), unsafe_allow_html=True)
+    guide_col, groups_col = st.columns(2)
+    if guide_col.button(f"{NAV_ICONS['compat']} מדריך שימוש", key="open_guide", use_container_width=True):
+        guide_dialog(checked)
+    if groups_col.button("מה כל רכיב עושה", key="open_groups", use_container_width=True):
+        groups_dialog(checked)
 
 
 def product_card_html(product):
