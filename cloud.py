@@ -64,7 +64,10 @@ def unpack(data):
 
 
 def _request(url, key, method="GET", body=None, extra=None):
-    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    if not key.startswith("sb_"):
+        # מפתחות בפורמט החדש (sb_secret_...) נשלחים רק ב-apikey; מפתחות JWT ישנים גם ב-Authorization
+        headers["Authorization"] = f"Bearer {key}"
     headers.update(extra or {})
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
