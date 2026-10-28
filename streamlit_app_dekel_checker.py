@@ -2966,13 +2966,42 @@ def tab_product():
         not_found_dialog(term, similar)
 
 
+def pair_verdict(first, second):
+    """האם אפשר לשלב בין שני מוצרים: (קוד, כותרת, הסבר, התנגשויות)."""
+    conflicts = compare_actives(set(first.get("actives", [])), set(second.get("actives", [])))
+    if not conflicts:
+        return "ok", "אפשר לשלב", "אין התנגשות בין הפעילים של שני המוצרים, ולכן אפשר להשתמש בהם באותה שגרה.", []
+    pair = (first.get("time"), second.get("time"))
+    if pair in OPPOSITE_TIMES:
+        return "separate", "רק בנפרד", "יש ביניהם התנגשות, אבל הם מיועדים לשעות הפוכות: אחד בבוקר והשני בערב, ולכן אפשר להשתמש בשניהם בהפרדה.", conflicts
+    return "avoid", "עדיף לא לשלב", "יש התנגשות בין הפעילים של שני המוצרים. אם רוצים להשתמש בשניהם, כדאי להפריד ביניהם בין בוקר וערב או בין ימים.", conflicts
+
+
+def verdict_html(first, second, verdict):
+    code, title, text, conflicts = verdict
+    icon = {"ok": "✅", "separate": "🕒", "avoid": "⛔"}[code]
+    reasons = "".join(f"<li><b>{html.escape(t)}:</b> {html.escape(r)}</li>" for t, r in conflicts)
+    reasons = f'<ul class="cx-reasons">{reasons}</ul>' if reasons else ""
+
+    def side(entry):
+        uri = thumb_uri(entry["slug"])
+        img = f'<img src="{uri}" alt="">' if uri else '<div class="pv-noimg">🧴</div>'
+        brand = entry["company"].split("|")[-1].strip()
+        return f'<div class="pv-side">{img}<b>{html.escape(entry["name"])}</b><small>{html.escape(brand)}</small></div>'
+
+    return (
+        f'<div class="pv {code}"><div class="pv-row">{side(first)}<div class="pv-plus">+</div>{side(second)}</div>'
+        f'<div class="pv-res"><span>{icon}</span><div><b>{title}</b><p>{html.escape(text)}</p>{reasons}</div></div></div>'
+    )
+
+
 def _select_catalog_product(slug):
     entry = routine_entries_by_slug().get(slug)
     if not entry:
         return
     names, results_map, meta = load_product_ingredients(slug)
     st.session_state.results.update(results_map)
-    st.session_state.ocr_ingredients_text = "\n".join(names)
+    st.session_state.ocr_ingredients_text = chr(10).join(names)
     st.session_state.selected_product = {
         "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"], "description": "",
         "slug": slug, "picture": "", "verified": entry.get("verified", True),
@@ -2982,35 +3011,44 @@ def _select_catalog_product(slug):
 
 def tab_compat():
     how_box(
-        "🤝", "שילובים: מה אפשר להשתמש איתו",
-        "בוחרות מוצר אחד, ואנחנו משוות אותו לכל מוצרי הקטלוג של דקל לפי הרכיבים הפעילים שבהם. "
-        "התוצאה: מי מתאים לשימוש יחד איתו, מי רק בנפרד (בוקר מול ערב), ומי עדיף להימנע ממנו.",
+        "🤝", "שילובים: אפשר להשתמש בשני מוצרים יחד?",
+        "בוחרים מוצר אחד, אחר כך מוצר שני, ולוחצים שלב. נשווה ביניהם לפי הרכיבים הפעילים ונגיד אם אפשר להשתמש בשניהם באותה שגרה.",
     )
+    options = routine_options()
+    by_slug = routine_lookup()
+    labels = list(options)
     with st.container(border=True):
-        section("🧴", "איזה מוצר לבדוק?", "בחרי מוצר מהקטלוג, או השתמשי במוצר שבחרת קודם")
-        options = routine_options()
-        choice = st.selectbox(
-            "מוצר לבדיקת שילובים", list(options), index=None, label_visibility="collapsed",
-            placeholder="התחילי להקליד שם של מוצר מהקטלוג", key=f"compat_pick_{st.session_state.manual_key}",
+        section("🔀", "השוואה בין שני מוצרים", "התחילי להקליד שם של מוצר, בעברית או באנגלית, ובחרי מהרשימה")
+        first_col, second_col = st.columns(2)
+        first_pick = first_col.selectbox(
+            "מוצר ראשון", labels, index=None, placeholder="מוצר ראשון", key=f"cmp_a_{st.session_state.manual_key}"
         )
-        pick_col, tip_col = st.columns([1, 2], vertical_alignment="center")
-        if pick_col.button("בדקי שילובים", key="compat_go"):
-            slug = options.get(choice)
-            if slug:
-                _select_catalog_product(slug)
-                st.rerun()
+        second_pick = second_col.selectbox(
+            "מוצר שני", labels, index=None, placeholder="מוצר שני", key=f"cmp_b_{st.session_state.manual_key}"
+        )
+        if st.button("🔀 שלב", key="compat_combine", type="primary", use_container_width=True):
+            first_slug, second_slug = options.get(first_pick), options.get(second_pick)
+            if not first_slug or not second_slug:
+                st.warning("בחרי שני מוצרים מהרשימות שנפתחות בהקלדה")
+            elif first_slug == second_slug:
+                st.info("בחרת את אותו מוצר פעמיים. בחרי מוצר שני אחר.")
             else:
-                st.warning("בחרי מוצר מהרשימה שנפתחת בהקלדה")
-        tip_col.caption("ההשוואה מבוססת על הפעילים החזקים במוצר, כמו חומצות פילינג, רטינואידים וויטמין C.")
+                st.session_state.compat_pair = (first_slug, second_slug)
 
-    product = st.session_state.selected_product
-    if not (product and product.get("slug") and product.get("source") != "obf"):
-        st.info("בחרי מוצר מהקטלוג כדי לראות איתו אילו מוצרים אפשר לשלב.")
-        st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
-        return
-    selected_product_banner()
-    names = split_ingredients(st.session_state.ocr_ingredients_text)
-    show_compatibility(names, st.session_state.results, product, st.session_state.product_meta)
+    pair = st.session_state.get("compat_pair")
+    if pair and pair[0] in by_slug and pair[1] in by_slug:
+        first, second = by_slug[pair[0]], by_slug[pair[1]]
+        st.markdown(verdict_html(first, second, pair_verdict(first, second)), unsafe_allow_html=True)
+        st.caption("ההערכה לפי הפעילים הבולטים בכל מוצר וכללי שילוב כלליים, ואינה ייעוץ רפואי.")
+        if st.toggle(f"הצגי את כל המוצרים שמתאימים ל-{first['name']}", key="compat_show_all"):
+            _select_catalog_product(pair[0])
+            show_compatibility(
+                split_ingredients(st.session_state.ocr_ingredients_text), st.session_state.results,
+                st.session_state.selected_product, st.session_state.product_meta,
+            )
+    else:
+        st.info("בחרי שני מוצרים ולחצי שלב כדי לראות אם אפשר להשתמש בהם יחד.")
+    st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
 
 
 @st.cache_data(show_spinner=False)
