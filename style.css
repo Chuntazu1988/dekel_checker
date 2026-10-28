@@ -2203,3 +2203,4 @@ html[data-mode="dark"] [data-baseweb="select"] > div { background: rgba(255, 255
 [data-baseweb="popover"] [role="listbox"], [data-baseweb="popover"] ul { background: var(--bg) !important; color: var(--ink) !important; border: 1px solid var(--tile-line); }
 [data-baseweb="popover"] li { background: transparent !important; color: var(--ink) !important; }
 [data-baseweb="popover"] li:hover { background: rgba(var(--p-rgb), 0.18) !important; }
+[data-testid="stSelectbox"], [data-testid="stMultiSelect"], [data-testid="stTextInput"], [data-testid="stTextArea"], [data-testid="stFileUploader"], [data-testid="stToggle"], [data-testid="stSegmentedControl"] { background: transparent !important; }
