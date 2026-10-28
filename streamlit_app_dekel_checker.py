@@ -3014,33 +3014,79 @@ def _select_catalog_product(slug):
     st.session_state.product_meta = meta
 
 
+def compat_slot(title, tag, options):
+    """בוחרת מוצר אחד להשוואה: מרשימה נפתחת או מצילום. מחזירה slug או None."""
+    chosen = st.session_state.get(f"cmp_photo_{tag}")
+    if chosen:
+        entry = routine_lookup().get(chosen)
+        st.markdown(f"**{title}:** {html.escape(entry['name']) if entry else chosen}")
+        if st.button("החליפי מוצר", key=f"cmp_clear_{tag}"):
+            st.session_state[f"cmp_photo_{tag}"] = None
+            st.rerun()
+        return chosen
+    t_pick, t_photo = st.tabs(["🔎 חיפוש", "📷 צילום"])
+    with t_pick:
+        pick = st.selectbox(
+            title, list(options), index=None, placeholder=title, key=f"cmp_{tag}_{st.session_state.manual_key}"
+        )
+    with t_photo:
+        photo = st.file_uploader(
+            f"{title}, צילום", type=["jpg", "jpeg", "png"], label_visibility="collapsed",
+            key=f"cmp_up_{tag}_{st.session_state.uploader_key}",
+        )
+        st.caption("צלמי את חזית האריזה מקרוב, כשהמותג והשם נראים.")
+        if photo and st.button("🔎 זהי את המוצר", key=f"cmp_id_{tag}"):
+            identify_product(photo.getvalue())
+            st.session_state[f"cmp_cands_{tag}"] = (st.session_state.product_status, list(st.session_state.product_candidates) if st.session_state.product_source == "dekel" else [])
+            st.session_state.product_candidates = []
+            st.session_state.product_status = None
+            st.session_state.product_source = None
+            st.session_state.photo_source = False
+        status, cands = st.session_state.get(f"cmp_cands_{tag}") or (None, [])
+        if status == "wrong-list":
+            st.error("זו נראית כמו רשימת רכיבים ולא המוצר עצמו. צלמי את חזית האריזה.")
+        elif status in ("none", "no-text", "error") or (status == "ok" and not cands):
+            st.info("לא זיהיתי מוצר מהתמונה. נסי לצלם שוב מקרוב, או חפשי לפי שם.")
+        for index, product in enumerate(cands[:3]):
+            st.markdown(product_card_html(product), unsafe_allow_html=True)
+            if st.button("✔ זה המוצר", key=f"cmp_sel_{tag}_{index}"):
+                slug = product.get("slug")
+                if slug and slug not in routine_lookup():
+                    with st.spinner("מביאה את הרכיבים של המוצר..."):
+                        names, results_map, meta = load_product_ingredients(slug)
+                    st.session_state.results.update(results_map)
+                    st.session_state.custom_products[slug] = custom_entry(
+                        slug, product["name"], product.get("company", ""), names, results_map, meta, product.get("verified", False)
+                    )
+                st.session_state[f"cmp_photo_{tag}"] = slug
+                st.session_state[f"cmp_cands_{tag}"] = None
+                st.rerun()
+    return options.get(pick)
+
+
 def tab_compat():
     how_box(
         "🤝", "שילובים: אפשר להשתמש בשני מוצרים יחד?",
-        "בוחרים מוצר אחד, אחר כך מוצר שני, ולוחצים שלב. נשווה ביניהם לפי הרכיבים הפעילים ונגיד אם אפשר להשתמש בשניהם באותה שגרה.",
+        "בוחרים מוצר אחד, אחר כך מוצר שני, בחיפוש לפי שם או בצילום של האריזה, ולוחצים שלב. נשווה ביניהם לפי הרכיבים הפעילים ונגיד אם אפשר להשתמש בשניהם באותה שגרה.",
     )
     options = routine_options()
-    by_slug = routine_lookup()
-    labels = list(options)
     with st.container(border=True):
-        section("🔀", "השוואה בין שני מוצרים", "התחילי להקליד שם של מוצר, בעברית או באנגלית, ובחרי מהרשימה")
+        section("🔀", "השוואה בין שני מוצרים", "מחפשים לפי שם, בעברית או באנגלית, או מצלמים את המוצר")
         first_col, second_col = st.columns(2)
-        first_pick = first_col.selectbox(
-            "מוצר ראשון", labels, index=None, placeholder="מוצר ראשון", key=f"cmp_a_{st.session_state.manual_key}"
-        )
-        second_pick = second_col.selectbox(
-            "מוצר שני", labels, index=None, placeholder="מוצר שני", key=f"cmp_b_{st.session_state.manual_key}"
-        )
+        with first_col:
+            first_slug = compat_slot("מוצר ראשון", "a", options)
+        with second_col:
+            second_slug = compat_slot("מוצר שני", "b", options)
         if st.button("🔀 שלב", key="compat_combine", type="primary", use_container_width=True):
-            first_slug, second_slug = options.get(first_pick), options.get(second_pick)
             if not first_slug or not second_slug:
-                st.warning("בחרי שני מוצרים מהרשימות שנפתחות בהקלדה")
+                st.warning("בחרי שני מוצרים, מהרשימה או מצילום")
             elif first_slug == second_slug:
                 st.info("בחרת את אותו מוצר פעמיים. בחרי מוצר שני אחר.")
             else:
                 st.session_state.compat_pair = (first_slug, second_slug)
 
     pair = st.session_state.get("compat_pair")
+    by_slug = routine_lookup()
     if pair and pair[0] in by_slug and pair[1] in by_slug:
         first, second = by_slug[pair[0]], by_slug[pair[1]]
         st.markdown(verdict_html(first, second, pair_verdict(first, second)), unsafe_allow_html=True)
