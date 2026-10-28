@@ -2204,3 +2204,33 @@ html[data-mode="dark"] [data-baseweb="select"] > div { background: rgba(255, 255
 [data-baseweb="popover"] li { background: transparent !important; color: var(--ink) !important; }
 [data-baseweb="popover"] li:hover { background: rgba(var(--p-rgb), 0.18) !important; }
 [data-testid="stSelectbox"], [data-testid="stMultiSelect"], [data-testid="stTextInput"], [data-testid="stTextArea"], [data-testid="stFileUploader"], [data-testid="stToggle"], [data-testid="stSegmentedControl"] { background: transparent !important; }
+
+/* =====================================================================
+   אריחי פעולה קומפקטיים: בגודל הטקסט, עם אייקון שמתאר את הפעולה
+   ===================================================================== */
+html[data-mode] .stApp [class*="st-key-go_"] button { min-height: 0 !important; padding: 1.15rem 1.2rem 1.2rem !important; align-items: flex-end; border-radius: 22px !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button::after { display: none !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button::before {
+    display: grid !important; position: static !important; width: 3.1rem !important; height: 3.1rem !important; margin: 0 0 0.85rem 0 !important; place-items: center; border-radius: 16px; transform: none !important;
+    font-family: 'Material Symbols Rounded'; font-size: 1.85rem; font-weight: normal; letter-spacing: normal; text-transform: none; font-feature-settings: 'liga'; direction: ltr; line-height: 1;
+    color: rgb(var(--acc)); background: linear-gradient(145deg, rgba(var(--acc), 0.26), rgba(var(--acc), 0.08)); border: 1px solid rgba(var(--acc), 0.5); box-shadow: 0 10px 26px -6px rgba(var(--acc), 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transition: transform 0.4s var(--ease), box-shadow 0.4s ease;
+}
+html[data-mode] .stApp .st-key-go_list button::before { content: "checklist" !important; }
+html[data-mode] .stApp .st-key-go_product button::before { content: "photo_camera" !important; }
+html[data-mode] .stApp .st-key-go_search button::before { content: "search" !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button:hover::before { transform: scale(1.1) rotate(-6deg) !important; box-shadow: 0 14px 34px -4px rgba(var(--acc), 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+html[data-mode] .stApp [class*="st-key-go_"] button p strong { font-size: 1.35rem !important; margin-bottom: 0.2rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { font-size: 0.82rem; max-width: 100% !important; margin: 0; }
+html[data-mode] .stApp [class*="st-key-go_"] button:hover { transform: translateY(-4px); }
+@media (max-width: 700px) { html[data-mode] .stApp [class*="st-key-go_"] button { padding: 0.95rem 1rem !important; } html[data-mode] .stApp [class*="st-key-go_"] button p strong { font-size: 1.2rem !important; } }
+.stats { margin: 1.1rem 0 0.4rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button { align-items: flex-end !important; justify-content: flex-start !important; gap: 0; }
+html[data-mode] .stApp [class*="st-key-go_"] button > div { width: 100%; display: flex; flex-direction: column; align-items: flex-end; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { text-align: right; width: 100%; }
+html[data-mode] .stApp [class*="st-key-go_"] button p strong { margin-bottom: 0.15rem; }
+@media (max-width: 700px) {
+    html[data-mode] .stApp [class*="st-key-go_"] button { flex-direction: row-reverse !important; align-items: center !important; gap: 0.9rem; }
+    html[data-mode] .stApp [class*="st-key-go_"] button::before { margin: 0 !important; flex: none; }
+    html[data-mode] .stApp [class*="st-key-go_"] button > div { flex: 1; }
+}

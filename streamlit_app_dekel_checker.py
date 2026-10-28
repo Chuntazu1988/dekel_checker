@@ -2996,7 +2996,6 @@ def tab_home():
     st.markdown(home_tile_css(), unsafe_allow_html=True)
     st.markdown(hero_html(), unsafe_allow_html=True)
     st.markdown(marquee_html(), unsafe_allow_html=True)
-    st.markdown(stats_html(), unsafe_allow_html=True)
     st.markdown('<div class="ask">מה את רוצה לבדוק?</div>', unsafe_allow_html=True)
     first, second, third = st.columns(3)
     if first.button("**צילום רשימת רכיבים**  \nהטקסט הקטן בגב האריזה", key="go_list", use_container_width=True):
@@ -3006,6 +3005,7 @@ def tab_home():
     if third.button("**חיפוש לפי שם**  \nמוצר או רכיב, בעברית או באנגלית", key="go_search", use_container_width=True):
         go_to(TAB_PRODUCT)
 
+    st.markdown(stats_html(), unsafe_allow_html=True)
     st.markdown('<div class="ask small">או הרבה יותר מזה</div>', unsafe_allow_html=True)
     cols = st.columns(4)
     for col, (label, tab, key) in zip(cols, (
