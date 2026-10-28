@@ -2312,3 +2312,12 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
     white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.35; padding-block: 0.45rem;
 }
 [data-baseweb="select"] input { text-overflow: ellipsis; }
+
+/* ---------- פס כפתורים עליון בטלפון: שורה אחת קומפקטית ---------- */
+@media (max-width: 640px) {
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) { flex-direction: row !important; flex-wrap: wrap !important; gap: 0.4rem !important; justify-content: center; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"] { width: auto !important; min-width: 0 !important; flex: 0 0 auto !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:empty,
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:nth-child(3) { display: none !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) button, [data-testid="stHorizontalBlock"]:has(.st-key-restart) a { font-size: 0.82rem !important; padding: 0.3rem 0.8rem !important; min-height: 2.2rem !important; }
+}
