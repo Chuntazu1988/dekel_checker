@@ -1471,7 +1471,7 @@ def marquee_html():
 
     def row(slugs, reverse):
         items = "".join(
-            f'<a class="mq-item" target="_blank" rel="noopener" title="{html.escape(by_slug[slug]["name"])}" '
+            f'<a class="mq-item" data-slug="{html.escape(slug)}" target="_blank" rel="noopener" title="{html.escape(by_slug[slug]["name"])}" '
             f'href="https://thedekel.co.il/product-verified/?slug={quote(slug)}"><figure><img alt="{html.escape(by_slug[slug]["name"])}" src="{thumb_uri(slug)}"><figcaption>'
             f'{html.escape(by_slug[slug]["company"].split("|")[-1].strip())}</figcaption></figure></a>'
             for slug in slugs if slug in by_slug
@@ -1583,7 +1583,19 @@ def login_button(label="התחברות עם גוגל", key="login_btn"):
             st.toast("ההתחברות עם גוגל עדיין לא הופעלה באתר. היא תעבוד אחרי הגדרת החשבון.", icon="ℹ️")
 
 
+def ensure_account_state():
+    """מאתחלת את מפתחות המצב האישיים לפני שהכניסה טוענת אותם (הכניסה רצה לפני שאר האיתחול)."""
+    state = st.session_state
+    if "profile" not in state:
+        state.profile = skinprofile.decode(st.query_params.get("profile", ""))
+    if "routine" not in state:
+        state.routine = [slug for slug in st.query_params.get("routine", "").split(",") if slug]
+    state.setdefault("history", [])
+    state.setdefault("custom_products", {})
+
+
 def load_account_data(user):
+    ensure_account_state()
     """טוענת פרופיל, שגרה והיסטוריה של המשתמשת המחוברת פעם אחת בכל הפעלה."""
     if st.session_state.get("cloud_loaded") == user["email"]:
         return
@@ -1608,6 +1620,7 @@ def load_account_data(user):
 
 
 def sync_account_data():
+    ensure_account_state()
     """שומרת בענן אם משהו השתנה מאז השמירה האחרונה. נקראת בסוף כל הרצה."""
     user = current_user()
     conf = supabase_conf()
@@ -3312,7 +3325,24 @@ def account_bar():
         st.caption("התחברות עם גוגל שומרת את הפרופיל, השגרה וההיסטוריה שלך בין ביקורים ובין מכשירים.")
 
 
+def _mq_open():
+    slug = (st.session_state.get("mq_open") or "").strip()
+    st.session_state.mq_open = ""
+    if slug:
+        st.session_state.mq_pending = slug
+
+
 def tab_home():
+    with st.container(key="mqbridge"):
+        st.text_input("mq", key="mq_open", label_visibility="collapsed", on_change=_mq_open)
+    pending = st.session_state.pop("mq_pending", None)
+    if pending:
+        entry = routine_entries_by_slug().get(pending)
+        if entry:
+            choose_dekel_product({
+                "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"],
+                "description": "", "slug": pending, "picture": "", "verified": entry.get("verified", True),
+            })
     account_bar()
     st.markdown(home_tile_css(), unsafe_allow_html=True)
     st.markdown(hero_html(), unsafe_allow_html=True)

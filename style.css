@@ -2267,3 +2267,16 @@ html[data-mode="light"] .cx-sum b { color: var(--pink-d); }
 .st-key-nav { padding-top: 0 !important; }
 .st-key-nav [data-testid="stButtonGroup"] button, .st-key-nav [data-testid="stButtonGroup"] button p { white-space: nowrap !important; }
 .st-key-nav [data-testid="stButtonGroup"] button { flex: 1 1 auto; min-width: 0; padding-inline: 0.7rem; }
+
+.st-key-mqbridge { position: absolute !important; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; margin: 0 !important; padding: 0 !important; }
+.st-key-mqbridge * { margin: 0 !important; }
+
+/* שלושת אריחי הפעולה: אייקון, כותרת והסבר ממורכזים באותה צורה בכולם */
+html[data-mode] .stApp [class*="st-key-go_"] button { align-items: center !important; justify-content: center !important; text-align: center !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button > div { align-items: center !important; width: 100%; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { text-align: center !important; width: 100%; margin-inline: auto !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: auto !important; }
+@media (max-width: 700px) {
+    html[data-mode] .stApp [class*="st-key-go_"] button { flex-direction: column !important; }
+    html[data-mode] .stApp [class*="st-key-go_"] button::before { margin: 0 auto 0.5rem !important; }
+}

@@ -694,3 +694,27 @@
     new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
     watch();
 })();
+
+// לחיצה על מוצר בפס הנע פותחת אותו באפליקציה (דרך שדה נסתר של Streamlit); עם Ctrl או לחיצה אמצעית נפתח עמוד המוצר באתר של דקל
+(function () {
+    if (window.__dekelMq) return;
+    window.__dekelMq = true;
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest && e.target.closest('.mq-item');
+        if (!link || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+        var input = document.querySelector('.st-key-mqbridge input');
+        if (!input) return;
+        e.preventDefault();
+        var slug = link.getAttribute('data-slug');
+        setTimeout(function () {
+            input.focus();
+            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            setter.call(input, slug);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            ['keydown', 'keypress', 'keyup'].forEach(function (type) {
+                input.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13, which: 13, bubbles: true }));
+            });
+            setTimeout(function () { input.blur(); }, 60);
+        }, 60);
+    }, true);
+})();
