@@ -2177,3 +2177,21 @@ html[data-mode="light"] .how .msr { color: var(--pink-d) !important; }
 html[data-mode] .stApp [class*="st-key-go_"] button::before { top: auto !important; left: auto !important; bottom: 1.2rem; right: 1.2rem; }
 html[data-mode] .stApp [class*="st-key-go_"] button:hover::before { transform: translate(3px, -3px); }
 .mq-track img { border-radius: 14px; opacity: 0.94; }
+
+
+/* ---------- התראות קופון ---------- */
+.alert-strip { display: flex; align-items: center; gap: 0.9rem; padding: 0.8rem 1.1rem; margin: 0.4rem 0 0.8rem; border-radius: 20px;
+    background: radial-gradient(300px 120px at 100% 50%, rgba(255, 211, 107, 0.28), transparent 70%), var(--tile-bg); border: 1px solid rgba(255, 211, 107, 0.55);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.35), 0 0 30px -6px rgba(255, 211, 107, 0.45); animation: pop 0.7s var(--ease) both; }
+.alert-strip.hot { border-color: rgba(255, 111, 168, 0.6); background: radial-gradient(300px 120px at 100% 50%, rgba(255, 111, 168, 0.28), transparent 70%), var(--tile-bg); }
+.as-bell { font-size: 1.6rem; display: inline-block; animation: bellring 2.4s ease-in-out infinite; transform-origin: 50% 0; }
+@keyframes bellring { 0%, 60%, 100% { transform: rotate(0); } 66% { transform: rotate(14deg); } 72% { transform: rotate(-12deg); } 78% { transform: rotate(8deg); } 84% { transform: rotate(-5deg); } }
+.alert-strip b { display: block; font: 700 1.05rem var(--serif); color: var(--tile-ink); }
+.alert-strip small { display: block; color: var(--tile-sub); font-size: 0.82rem; }
+.cp-badge { display: inline-block; margin-inline-start: 0.5rem; padding: 0.15rem 0.7rem; border-radius: 999px; font: 700 0.72rem var(--sans); color: #3B2200; background: linear-gradient(110deg, #FFE08A, #FFB84D); box-shadow: 0 6px 16px rgba(255, 184, 77, 0.4); animation: pop 0.6s var(--ease) both; }
+.st-key-alert_go button { margin-top: -0.4rem; }
+@media (prefers-reduced-motion: reduce) { .as-bell { animation: none; } }
+[data-testid="stToast"], [data-testid="stToast"] > div { background: #1B1424 !important; color: #F3EDE4 !important; border: 1px solid rgba(255, 211, 107, 0.5) !important; border-radius: 18px !important; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important; }
+[data-testid="stToast"] *, [data-testid="stToastContainer"] * { color: #F3EDE4 !important; }
+html[data-mode="light"] [data-testid="stToast"], html[data-mode="light"] [data-testid="stToast"] > div { background: #fff !important; }
+html[data-mode="light"] [data-testid="stToast"] * { color: #231B2B !important; }

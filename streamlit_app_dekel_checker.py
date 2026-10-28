@@ -684,6 +684,61 @@ NAV_ICONS = {
 }
 
 
+def product_coupons(product):
+    """הטבות פעילות כרגע למותג של מוצר, אם כבר נטענו."""
+    coupons = coupon_holder()["coupons"]
+    if not coupons or not product:
+        return []
+    return coupons_for(product.get("company", ""), coupons)
+
+
+def routine_alerts():
+    """[(רשומת מוצר, הטבות)] למוצרים בשגרה שיש להם הטבה פעילה."""
+    coupons = coupon_holder()["coupons"]
+    if not coupons:
+        return []
+    by_slug = routine_entries_by_slug()
+    alerts = []
+    for slug in st.session_state.get("routine", []):
+        entry = by_slug.get(slug)
+        if entry:
+            matches = coupons_for(entry["company"], coupons)
+            if matches:
+                alerts.append((entry, matches))
+    return alerts
+
+
+def coupon_line(coupon):
+    code = f" · קוד {coupon['code']}" if coupon.get("code") else ""
+    return f"{coupon['title']}{code}"
+
+
+def toast_once(key, text):
+    seen = st.session_state.setdefault("notified", set())
+    if key not in seen:
+        seen.add(key)
+        st.toast(text, icon="🎟️")
+
+
+def render_coupon_alerts():
+    """פס התראה בראש כל מסך, וטוסט חד-פעמי לכל הטבה חדשה על מוצר בשגרה."""
+    alerts = routine_alerts()
+    if not alerts:
+        return
+    for entry, matches in alerts:
+        for coupon in matches[:1]:
+            toast_once(f"{entry['slug']}:{coupon['title']}", f"יש הטבה פעילה למוצר מהשגרה שלך, {entry['name']}: {coupon_line(coupon)}")
+    names = ", ".join(entry["name"] for entry, _m in alerts[:2]) + (" ועוד" if len(alerts) > 2 else "")
+    first = alerts[0][1][0]
+    st.markdown(
+        '<div class="alert-strip"><span class="as-bell">🔔</span><div><b>הטבה פעילה למוצר מהשגרה שלך</b>'
+        f'<small>{html.escape(names)} · {html.escape(coupon_line(first))}</small></div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.session_state.get("nav") != TAB_COUPONS and st.button("🎟️ לצפייה בהטבה", key="alert_go"):
+        go_to(TAB_COUPONS)
+
+
 def nav_label(tab):
     names = {
         TAB_HOME: f"{NAV_ICONS['home']} בית", TAB_INGREDIENTS: f"{NAV_ICONS['list']} רשימת רכיבים",
@@ -692,6 +747,8 @@ def nav_label(tab):
         TAB_COUPONS: f"{NAV_ICONS['coupons']} קופונים",
     }
     label = names.get(tab, tab)
+    if tab == TAB_ROUTINE and routine_alerts():
+        return f"{label} 🔔{len(routine_alerts())}"
     if tab == TAB_HISTORY and st.session_state.history:
         count = len(history_alerts())
         if count:
@@ -1879,6 +1936,10 @@ def result_dialog(names):
     product = st.session_state.selected_product
     if product and product.get("source") != "obf":
         st.markdown(product_stage_html(product), unsafe_allow_html=True)
+        matches = product_coupons(product)
+        if matches:
+            st.markdown('<div class="alert-strip hot"><span class="as-bell">🎟️</span><div><b>יש קופון פעיל למוצר הזה</b>'
+                        f'<small>{html.escape(coupon_line(matches[0]))}</small></div></div>', unsafe_allow_html=True)
     for card in (
         score_card_html(results),
         key_points_html(checked, st.session_state.results, st.session_state.product_meta),
@@ -2078,6 +2139,10 @@ def show_summary(ingredients):
         groups_dialog(checked)
 
 
+def coupon_badge(product):
+    return '<span class="cp-badge">🎟️ קופון פעיל</span>' if product_coupons(product) else ""
+
+
 def product_card_html(product):
     verified = product["verified"]
     seal = (
@@ -2112,7 +2177,7 @@ def product_card_html(product):
         f'<div class="pcard {"verified" if verified else "notverified"}">{mascot}{img}<div class="pbody">'
         f'<div class="pco">{html.escape(product["company"])}</div>'
         f'<div class="pname">{html.escape(product["name"])}</div>{name2}'
-        f'<div class="pseal">{seal}</div>{paragraphs}{link}</div></div>'
+        f'<div class="pseal">{seal}{coupon_badge(product)}</div>{paragraphs}{link}</div></div>'
     )
 
 
@@ -2477,6 +2542,11 @@ def selected_product_banner():
         st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
     else:
         st.markdown(product_stage_html(product), unsafe_allow_html=True)
+        matches = product_coupons(product)
+        if matches:
+            toast_once(f"sel:{product.get('slug')}", f"יש קופון פעיל ל-{product['name']}: {coupon_line(matches[0])}")
+            st.markdown('<div class="alert-strip hot"><span class="as-bell">🎟️</span><div><b>יש קופון פעיל למוצר הזה</b></div></div>', unsafe_allow_html=True)
+            st.markdown("".join(coupon_card_html(c) for c in matches[:2]), unsafe_allow_html=True)
         if product.get("slug") and product["slug"] in routine_entries_by_slug():
             if product["slug"] in st.session_state.routine:
                 st.caption("✔ המוצר כבר בשגרה שלך")
@@ -3028,10 +3098,11 @@ def coupon_watcher():
         st.rerun()
 
 
-if st.session_state.history and coupon_holder()["busy"]:
+ensure_coupons_async()
+if coupon_holder()["busy"]:
     st.fragment(run_every=4)(coupon_watcher)()
-elif st.session_state.history:
-    ensure_coupons_async()
+
+render_coupon_alerts()
 
 {
     TAB_HOME: tab_home,
