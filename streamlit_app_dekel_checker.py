@@ -3483,9 +3483,15 @@ def tab_home():
         st.markdown('<div class="ask small">המשיכי מאיפה שעצרת</div>', unsafe_allow_html=True)
         for column, entry in zip(st.columns(len(recent)), recent):
             with column:
-                if entry["thumb"]:
-                    st.image(entry["thumb"], width=84)
-                st.caption(entry["title"][:28])
+                photo = (
+                    f'<img alt="" src="data:image/jpeg;base64,{base64.b64encode(entry["thumb"]).decode("ascii")}">'
+                    if entry["thumb"] else '<span class="feat-ph">🧴</span>'
+                )
+                st.markdown(
+                    f'<div class="feat recent"><div class="feat-photo">{photo}</div>'
+                    f'<div class="feat-name">{html.escape(entry["title"])}</div></div>',
+                    unsafe_allow_html=True,
+                )
                 if st.button("פתחי", key=f"home_recent_{entry['key']}"[:60], use_container_width=True):
                     open_history_entry(entry)
 

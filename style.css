@@ -2336,3 +2336,9 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 /* זכויות יוצרים בתחתית כל המסכים */
 .copyright { text-align: center; color: var(--muted); font: 500 0.8rem var(--sans); letter-spacing: 0.04em; padding: 0.4rem 0 6.5rem; }
 .copyright.gate-copy { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.8rem 0; color: rgba(228, 201, 160, 0.7); z-index: 5; pointer-events: none; }
+
+/* "המשיכי מאיפה שעצרת": כרטיסים אחידים */
+.feat.recent { padding: 0.7rem 0.6rem; }
+.feat.recent .feat-photo { height: 5.6rem; margin-bottom: 0.5rem; }
+.feat.recent .feat-ph { font-size: 2.4rem; opacity: 0.6; }
+.feat.recent .feat-name { font-size: 0.92rem; min-height: 0; margin: 0; direction: rtl; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
