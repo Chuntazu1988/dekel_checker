@@ -2234,3 +2234,20 @@ html[data-mode] .stApp [class*="st-key-go_"] button p strong { margin-bottom: 0.
     html[data-mode] .stApp [class*="st-key-go_"] button::before { margin: 0 !important; flex: none; }
     html[data-mode] .stApp [class*="st-key-go_"] button > div { flex: 1; }
 }
+
+
+/* ---------- ברכה אישית והתחברות ---------- */
+.hero .greet { font: 600 1.15rem var(--sans); color: var(--gold-l); letter-spacing: 0.04em; margin-bottom: 0.7rem; animation: fadein 1.2s ease 0.5s both; }
+.hero .greet::before { content: ""; display: inline-block; width: 1.6rem; height: 1px; background: var(--gold); vertical-align: middle; margin-inline-end: 0.6rem; }
+.st-key-gate_login { display: flex; justify-content: center; margin-top: 0.8rem; position: relative; z-index: 2; animation: fadein 1.4s ease 2.7s both !important; }
+.st-key-gate_login button { background: transparent !important; border: 1px solid rgba(228, 201, 160, 0.5) !important; color: #E4C9A0 !important; border-radius: 999px !important; }
+.st-key-gate_login button p, .st-key-gate_login button span { color: #E4C9A0 !important; }
+.st-key-logout_btn button { border-radius: 999px !important; font-size: 0.85rem; }
+
+.cx-sum { padding: 0.9rem 1.1rem; margin: 0.4rem 0 0.8rem; border-radius: 18px; background: var(--tile-bg); border: 1px solid var(--tile-line); border-inline-start: 4px solid var(--gold); }
+.cx-sum b { display: block; font: 700 1rem var(--serif); color: var(--gold-l); margin-bottom: 0.2rem; }
+.cx-sum span { color: var(--tile-ink); font-size: 0.95rem; line-height: 1.7; }
+html[data-mode="light"] .cx-sum b { color: var(--pink-d); }
+.st-key-top_login_btn button, .st-key-top_logout button { border-radius: 999px !important; font-size: 0.85rem; white-space: nowrap; }
+.st-key-gate_login { display: flex !important; justify-content: center; }
+.st-key-gate_login, .st-key-gate_login [data-testid="stElementContainer"], .st-key-gate_login [data-testid="stButton"], .st-key-gate_login .stButton { display: flex !important; justify-content: center !important; width: 100% !important; }

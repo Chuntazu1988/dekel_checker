@@ -36,7 +36,7 @@
         return {
             x: Math.random() * W, y: fromBottom ? H + r + Math.random() * 80 : Math.random() * H,
             r: r, vy: -(Math.random() * 0.10 + 0.03), ph: Math.random() * 6.28,
-            t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0
+            t: TINTS[Math.floor(Math.random() * TINTS.length)], pop: 0, kind: Math.random() < 0.6 ? 0 : 1, tilt: (Math.random() - 0.5) * 0.8
         };
     }
 
@@ -148,17 +148,40 @@
     }
 
     function drawBubble(q, now) {
-        var wob = Math.sin(now * 0.0005 + q.ph) * 14;
-        var x = q.x + wob, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = 1 - q.pop;
-        var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-        g.addColorStop(0, 'rgba(255,255,255,' + (0.55 * alpha).toFixed(3) + ')');
-        g.addColorStop(0.55, 'rgba(' + q.t + ',' + (0.10 * alpha).toFixed(3) + ')');
-        g.addColorStop(1, 'rgba(' + q.t + ',' + (0.20 * alpha).toFixed(3) + ')');
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.55 * alpha).toFixed(3) + ')';
-        ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.4, r * 0.18, 0, 6.2832);
-        ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * alpha).toFixed(3) + ')'; ctx.fill();
+        var wob = Math.sin(now * 0.0005 + q.ph);
+        var x = q.x + wob * 14, y = q.y, r = q.r * (1 + q.pop * 0.5), alpha = (1 - q.pop);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(wob * 0.28 + q.tilt);
+        ctx.globalAlpha = alpha;
+        var tint = 'rgba(' + q.t + ',';
+        if (q.kind === 0) {
+            var w = r * 0.62, h = r * 1.9;
+            ctx.beginPath();
+            ctx.moveTo(-w, -h); ctx.lineTo(-w, h - w); ctx.arc(0, h - w, w, Math.PI, 0, true); ctx.lineTo(w, -h);
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1.6; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+            var level = -h * 0.1 + Math.sin(now * 0.002 + q.ph) * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-w + 1, level); ctx.lineTo(-w + 1, h - w); ctx.arc(0, h - w, w - 1, Math.PI, 0, true); ctx.lineTo(w - 1, level); ctx.closePath();
+            ctx.fillStyle = tint + '0.38)'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-w - 3, -h); ctx.lineTo(w + 3, -h); ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(-w * 0.35, level + h * 0.5, 1.6, 0, 6.2832); ctx.arc(w * 0.25, level + h * 0.9, 1.2, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-w * 0.55, -h * 0.7); ctx.lineTo(-w * 0.55, h * 0.1); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.4; ctx.stroke();
+        } else {
+            var lr = r * 0.62, gap = r * 0.34;
+            ctx.beginPath(); ctx.moveTo(-lr * 2 - gap, 0); ctx.quadraticCurveTo(0, -lr * 1.2, lr * 2 + gap, 0);
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.stroke();
+            for (var side = -1; side <= 1; side += 2) {
+                var cx = side * (lr + gap * 0.5);
+                ctx.beginPath(); ctx.ellipse(cx, 0, lr, lr * 0.8, 0, 0, 6.2832);
+                ctx.fillStyle = tint + '0.22)'; ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2.4; ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx - lr * 0.3, -lr * 0.25, lr * 0.28, lr * 0.14, -0.5, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+            }
+            ctx.beginPath(); ctx.moveTo(-gap * 0.6, 0); ctx.lineTo(gap * 0.6, 0); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3; ctx.stroke();
+        }
+        ctx.restore();
     }
 
     function frame(now) {

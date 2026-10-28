@@ -6,3 +6,4 @@ playwright
 pillow
 easyocr
 numpy
+Authlib>=1.3.2

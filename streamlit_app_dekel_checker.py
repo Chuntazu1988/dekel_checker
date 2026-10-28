@@ -21,6 +21,7 @@ import easyocr
 
 from routine import plan_routine
 import skinprofile
+import cloud
 from hebrew import has_hebrew, ingredient_matches, ingredient_options
 from compat import (
     ACTIVE_NAMES,
@@ -692,12 +693,47 @@ def product_coupons(product):
     return coupons_for(product.get("company", ""), coupons)
 
 
+def routine_lookup():
+    merged = dict(routine_entries_by_slug())
+    merged.update(st.session_state.get("custom_products", {}))
+    return merged
+
+
+def custom_entry(slug, name, company, names, results_map, meta, verified=False):
+    actives = detect_actives(names, results_map, (meta or {}).get("key_ingredients", ()))
+    flags = {flag for n in names for flag in results_map.get(n, {}).get("flags", [])}
+    return {
+        "slug": slug, "name": name, "name2": "", "company": company or "", "verified": verified,
+        "time": (meta or {}).get("time"), "types": [], "actives": sorted(actives),
+        "pregnancy_ok": False if "pregnancy" in flags else True, "sun": "sun" in flags, "ingredients": len(names),
+    }
+
+
+def add_to_routine(entry):
+    """מוסיפה לשגרה ובודקת מיד אם המוצר מתנגש עם מה שכבר בשגרה."""
+    lookup = routine_lookup()
+    existing = [lookup[slug] for slug in st.session_state.routine if slug in lookup]
+    if entry["slug"] in routine_entries_by_slug():
+        pass
+    else:
+        st.session_state.custom_products[entry["slug"]] = entry
+    if entry["slug"] not in st.session_state.routine:
+        st.session_state.routine.append(entry["slug"])
+        save_routine()
+    clashes = []
+    for other in existing:
+        found = compare_actives(set(entry.get("actives", [])), set(other.get("actives", [])))
+        if found:
+            clashes.append((other["name"], found))
+    st.session_state.routine_check = {"name": entry["name"], "clashes": clashes}
+
+
 def routine_alerts():
     """[(רשומת מוצר, הטבות)] למוצרים בשגרה שיש להם הטבה פעילה."""
     coupons = coupon_holder()["coupons"]
     if not coupons:
         return []
-    by_slug = routine_entries_by_slug()
+    by_slug = routine_lookup()
     alerts = []
     for slug in st.session_state.get("routine", []):
         entry = by_slug.get(slug)
@@ -864,6 +900,20 @@ def load_product_ingredients(slug):
 
 def _tokens(text):
     return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOPWORDS]
+
+
+def ingredient_list_matches(text):
+    """כמה חלקים בטקסט (מופרד בפסיקים) הם רכיבים מוכרים במאגר, ומתוך כמה."""
+    known = load_ingredient_db()["ingredients"]
+    parts = [re.sub(r"[^a-z0-9 \-/()']", "", part.lower()).strip() for part in re.split(r"[,;\n]", text or "")]
+    parts = [part for part in parts if len(part) >= 3]
+    hits = sum(1 for part in parts if part in known or part.rstrip(".") in known)
+    return hits, len(parts)
+
+
+def looks_like_ingredient_list(text):
+    hits, total = ingredient_list_matches(text)
+    return bool(total) and hits >= 6 and hits / total >= 0.35
 
 
 PRODUCT_OCR_SIDE = 1280
@@ -1163,11 +1213,30 @@ def show_compatibility(names, results, product, meta):
         return
     groups, generated = computed
 
-    section("🤝", "שילובים עם מוצרים אחרים בקטלוג", "אילו מוצרים של דקל מתאימים לשימוש יחד עם המוצר הזה")
+    total_ok, total_sep, total_avoid = len(groups["ok"]), len(groups["separate"]), len(groups["avoid"])
     if actives:
-        st.caption(f"פעילים בולטים במוצר: {active_label(actives)}")
+        why = f"במוצר הזה יש {active_label(actives)}, ולכן {total_avoid} מוצרים בקטלוג מתנגשים איתו"
+        if total_sep:
+            why += f" ו-{total_sep} מתאימים רק בנפרד (בוקר מול ערב)"
+        why += f". {total_ok} מוצרים מתאימים לשימוש יחד איתו."
     else:
-        st.caption("לא זוהו במוצר פעילים חזקים, ולכן רוב המוצרים מתאימים לשימוש יחד איתו.")
+        why = f"לא זוהו במוצר פעילים חזקים, ולכן {total_ok} מוצרים בקטלוג מתאימים לשימוש יחד איתו."
+    st.markdown(f'<div class="cx-sum"><b>איך לקרוא את זה</b><span>{html.escape(why)}</span></div>', unsafe_allow_html=True)
+
+    routine_slugs = st.session_state.get("routine", [])
+    if routine_slugs:
+        lookup = routine_lookup()
+        clashes = []
+        for slug in routine_slugs:
+            other = lookup.get(slug)
+            if other and slug != product.get("slug"):
+                found = compare_actives(actives, set(other.get("actives", [])))
+                if found:
+                    clashes.append((other["name"], found[0][0]))
+        if clashes:
+            st.warning("מול השגרה שלך: " + "; ".join(f"{name} ({title})" for name, title in clashes[:4]) + ". כדאי להפריד ביניהם.")
+        else:
+            st.success("מול השגרה שלך: אין התנגשות עם המוצרים שכבר בשגרה.")
 
     counts = {}
     for rows in groups.values():
@@ -1205,16 +1274,18 @@ def show_compatibility(names, results, product, meta):
         }
 
     tab_ok, tab_separate, tab_avoid = st.tabs([
-        f"✅ מתאימים ({len(groups['ok'])})",
-        f"🕒 בהפרדה ({len(groups['separate'])})",
-        f"⛔ לא לשלב ({len(groups['avoid'])})",
+        f"✅ אפשר לשלב ({len(groups['ok'])})",
+        f"🕒 רק בנפרד ({len(groups['separate'])})",
+        f"⛔ עדיף לא ({len(groups['avoid'])})",
     ])
     with tab_ok:
+        st.caption("אין ביניהם התנגשות בין הפעילים, ולכן אפשר להשתמש בהם באותה שגרה.")
         st.markdown(compat_group_html(groups["ok"], False, chosen), unsafe_allow_html=True)
     with tab_separate:
         st.caption("שילוב בעייתי באותה שגרה, אבל אפשר להשתמש בשניהם אם אחד בבוקר והשני בערב.")
         st.markdown(compat_group_html(groups["separate"], True, chosen), unsafe_allow_html=True)
     with tab_avoid:
+        st.caption("בין המוצרים האלה למוצר שבחרת יש התנגשות בין פעילים, והסיבה מופיעה מתחת לכל קבוצה.")
         st.markdown(compat_group_html(groups["avoid"], True, chosen), unsafe_allow_html=True)
 
     st.caption(
@@ -1414,8 +1485,11 @@ def hero_html():
         f'<div class="hero-mascot"><i></i><img alt="" src="data:image/webp;base64,{_mascot_b64}"></div>'
         if _mascot_b64 else ""
     )
+    user = current_user()
+    hello = cloud.greeting() + (f", {user['name']}" if user and user["name"] else "")
     return (
         '<div class="hero">' + mascot +
+        f'<div class="greet">{html.escape(hello)}</div>'
         '<div class="badge"><i></i>THE INGREDIENT ATELIER</div>'
         '<h1>מה באמת<br>יש במוצר שלך?</h1>'
         '<p>מצלמים, והמערכת קוראת כל רכיב, מדרגת אותו לפי דקל ומתאימה אותו אלייך.</p>'
@@ -1462,8 +1536,6 @@ def reset_all():
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
     st.session_state.ing_choices = []
-    st.session_state.routine = []
-    save_routine()
     st.session_state.product_lines = []
     st.session_state.product_pool = {}
     st.session_state.product_rejected = []
@@ -1471,6 +1543,77 @@ def reset_all():
     st.session_state.product_obf_tried = False
     st.session_state.uploader_key += 1
     st.session_state.manual_key += 1
+
+
+def current_user():
+    """פרטי המשתמשת המחוברת: {email, name} או None. עובד גם כשהכניסה עם גוגל לא הוגדרה."""
+    try:
+        user = st.user
+        if getattr(user, "is_logged_in", False):
+            return {"email": user.get("email", ""), "name": cloud.first_name(user)}
+    except Exception:
+        pass
+    return None
+
+
+def auth_configured():
+    try:
+        return "auth" in st.secrets and bool(st.secrets["auth"].get("client_id"))
+    except Exception:
+        return False
+
+
+def supabase_conf():
+    try:
+        conf = st.secrets["supabase"]
+        return conf["url"], conf["key"]
+    except Exception:
+        return None
+
+
+def login_button(label="התחברות עם גוגל", key="login_btn"):
+    if st.button(label, key=key, icon=":material/login:"):
+        if auth_configured():
+            st.login()
+        else:
+            st.toast("ההתחברות עם גוגל עדיין לא הופעלה באתר. היא תעבוד אחרי הגדרת החשבון.", icon="ℹ️")
+
+
+def load_account_data(user):
+    """טוענת פרופיל, שגרה והיסטוריה של המשתמשת המחוברת פעם אחת בכל הפעלה."""
+    if st.session_state.get("cloud_loaded") == user["email"]:
+        return
+    st.session_state.cloud_loaded = user["email"]
+    conf = supabase_conf()
+    if not conf or not user["email"]:
+        return
+    data = cloud.load(conf[0], conf[1], user["email"])
+    if not data:
+        st.session_state.cloud_hash = None
+        return
+    profile, routine, history, custom = cloud.unpack(data)
+    if custom:
+        st.session_state.custom_products = custom
+    if profile:
+        st.session_state.profile = skinprofile.normalize(profile)
+    if routine:
+        st.session_state.routine = routine
+    if history:
+        st.session_state.history = history
+    st.session_state.cloud_hash = json.dumps(cloud.pack(st.session_state.profile, st.session_state.routine, st.session_state.history, st.session_state.custom_products), sort_keys=True)
+
+
+def sync_account_data():
+    """שומרת בענן אם משהו השתנה מאז השמירה האחרונה. נקראת בסוף כל הרצה."""
+    user = current_user()
+    conf = supabase_conf()
+    if not user or not conf or not user["email"] or st.session_state.get("cloud_loaded") != user["email"]:
+        return
+    payload = cloud.pack(st.session_state.profile, st.session_state.routine, st.session_state.history, st.session_state.custom_products)
+    digest = json.dumps(payload, sort_keys=True)
+    if digest != st.session_state.get("cloud_hash"):
+        if cloud.save(conf[0], conf[1], user["email"], payload):
+            st.session_state.cloud_hash = digest
 
 
 def render_gate():
@@ -1500,18 +1643,32 @@ def render_gate():
         if st.button("כניסה לאתר", key="enter_btn"):
             st.session_state.entered = True
             st.rerun()
+    with st.container(key="gate_login"):
+        login_button("התחברות עם גוגל", key="gate_login_btn")
 
 
 if "entered" not in st.session_state:
     st.session_state.entered = False
+_user = current_user()
+if _user:
+    st.session_state.entered = True
+    load_account_data(_user)
 if not st.session_state.entered:
     render_gate()
     st.stop()
 
 st.markdown(brand_html(), unsafe_allow_html=True)
-top_left, top_right, _ = st.columns([1, 1, 2])
+top_left, top_right, _, top_account = st.columns([1, 1, 1, 1.3])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
 top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
+with top_account:
+    _who = current_user()
+    if _who:
+        if st.button(f"👤 {_who['name'] or 'החשבון שלי'} · התנתקות", key="top_logout"):
+            st.session_state.cloud_loaded = None
+            st.logout()
+    else:
+        login_button("התחברות", key="top_login_btn")
 
 
 try:
@@ -1564,6 +1721,10 @@ if "auto_scan" not in st.session_state:
     st.session_state.auto_scan = False
 if "result_popup" not in st.session_state:
     st.session_state.result_popup = False
+if "custom_products" not in st.session_state:
+    st.session_state.custom_products = {}
+if "routine_check" not in st.session_state:
+    st.session_state.routine_check = None
 if "photo_overlay" not in st.session_state:
     st.session_state.photo_overlay = None
 if "history" not in st.session_state:
@@ -2201,6 +2362,9 @@ def identify_product(image_bytes):
     with st.spinner("קוראת את הטקסט מהתמונה..."):
         lines = ocr_lines(image_bytes)
     st.session_state.product_lines = lines
+    if looks_like_ingredient_list(", ".join(line[0] for line in lines)):
+        st.session_state.product_status = "wrong-list"
+        return
     queries = build_queries(lines)
     if not queries:
         st.session_state.product_status = "no-text"
@@ -2354,6 +2518,9 @@ def flag_not_found(term, found):
 
 def search_by_typed_name(term):
     st.session_state.photo_source = False
+    if term.count(",") >= 4:
+        st.session_state.product_status = "wrong-list"
+        st.rerun()
     try:
         with st.spinner("מחפשת בקטלוג של דקל..."):
             found = search_products(term)
@@ -2469,6 +2636,11 @@ def render_candidates():
         st.warning("לא הצלחתי לקרוא טקסט בתמונה. נסי לצלם שוב מקרוב ובאור טוב, כשהשם והמותג נראים בבירור.")
     elif status == "error":
         st.error("לא הצלחתי לחפש את המוצר כרגע. נסי שוב בעוד רגע.")
+    elif status == "wrong-list":
+        st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. כדי לבדוק את הרכיבים, עברי ללשונית צילום רשימת הרכיבים.")
+        if st.button("📋 למסך צילום רשימת הרכיבים", key="wl_go"):
+            st.session_state.product_status = None
+            go_to(TAB_INGREDIENTS)
     elif status == "none":
         st.info("לא מצאתי התאמה בקטלוג. אפשר לכתוב את שם המוצר או המותג כאן למטה.")
     elif status == "exhausted":
@@ -2547,14 +2719,6 @@ def selected_product_banner():
             toast_once(f"sel:{product.get('slug')}", f"יש קופון פעיל ל-{product['name']}: {coupon_line(matches[0])}")
             st.markdown('<div class="alert-strip hot"><span class="as-bell">🎟️</span><div><b>יש קופון פעיל למוצר הזה</b></div></div>', unsafe_allow_html=True)
             st.markdown("".join(coupon_card_html(c) for c in matches[:2]), unsafe_allow_html=True)
-        if product.get("slug") and product["slug"] in routine_entries_by_slug():
-            if product["slug"] in st.session_state.routine:
-                st.caption("✔ המוצר כבר בשגרה שלך")
-            elif st.button("➕ הוסיפי לשגרה שלי", key="banner_add_routine"):
-                st.session_state.routine.append(product["slug"])
-                save_routine()
-                st.toast("המוצר נוסף לשגרה")
-                st.rerun()
     st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
 
 
@@ -2586,7 +2750,12 @@ def tab_ingredients():
         if uploaded_image:
             st.image(preview_image(open_image(uploaded_image)), caption="התמונה שהועלתה", width="stretch")
 
+            if st.session_state.get("wrong_photo"):
+                if st.button("📦 למסך צילום המוצר עצמו", key="wp_go"):
+                    st.session_state.wrong_photo = False
+                    go_to(TAB_PRODUCT)
             if st.button("✨ סרקי את הרכיבים מהתמונה"):
+                st.session_state.wrong_photo = False
                 started = time.time()
                 with st.spinner("קוראת את הטקסט מהתמונה..."):
                     extracted_text, ocr_boxes = extract_text(uploaded_image.getvalue())
@@ -2596,10 +2765,16 @@ def tab_ingredients():
                     st.code(extracted_text, language=None, wrap_lines=True)
 
                 ingredients = split_ingredients(extracted_text.replace(";", ","))
-                st.session_state.ocr_ingredients_text = "\n".join(ingredients)
-                st.session_state.selected_product = None
-                st.session_state.product_meta = None
-                st.session_state.auto_scan = True
+                hits, _total = ingredient_list_matches(extracted_text)
+                if hits < 2:
+                    st.error("לא זיהיתי כאן רשימת רכיבים. נראה שזו תמונה של המוצר עצמו (חזית האריזה). כדי לזהות את המוצר, עברי ללשונית צילום המוצר עצמו.")
+                    st.session_state.wrong_photo = True
+                    ingredients = []
+                if ingredients:
+                    st.session_state.ocr_ingredients_text = "\n".join(ingredients)
+                    st.session_state.selected_product = None
+                    st.session_state.product_meta = None
+                    st.session_state.auto_scan = True
                 st.session_state.photo_overlay = {
                     "img": make_thumb(uploaded_image.getvalue(), 1000), "boxes": ocr_boxes,
                 }
@@ -2626,16 +2801,26 @@ def tab_ingredients():
             if st.session_state.auto_scan:
                 st.session_state.auto_scan = False
                 check_all(ingredient_list)
-                st.session_state.result_popup = True
             if st.button(f"🚀 סרקי את כל הרכיבים ({len(ingredient_list)})", type="primary"):
                 check_all(ingredient_list)
-                st.session_state.result_popup = True
+
+            scanned = any(name in st.session_state.results for name in ingredient_list)
+            product = st.session_state.selected_product
+            can_add = bool(product and product.get("slug") and product["slug"] in routine_entries_by_slug())
+            if scanned:
+                sum_col, add_col = st.columns(2)
+                if sum_col.button("📄 סיכום מוצר", key="open_summary", use_container_width=True):
+                    result_dialog(ingredient_list)
+                if can_add:
+                    if product["slug"] in st.session_state.routine:
+                        add_col.button("✔ המוצר בשגרה שלי", key="in_routine", disabled=True, use_container_width=True)
+                    elif add_col.button("➕ הוסיפי לשגרה שלי", key="add_routine_top", use_container_width=True):
+                        st.session_state.routine.append(product["slug"])
+                        save_routine()
+                        st.toast("המוצר נוסף לשגרה")
+                        st.rerun()
 
             show_summary(ingredient_list)
-            if st.session_state.result_popup:
-                st.session_state.result_popup = False
-                if any(name in st.session_state.results for name in ingredient_list):
-                    result_dialog(ingredient_list)
 
             with st.expander("בדיקה של רכיב בודד מהרשימה"):
                 for ing in ingredient_list:
@@ -2736,6 +2921,8 @@ def tab_product():
         if st.button("בדקי מוצר", key="product_search"):
             if len(product_term.strip()) < 3:
                 st.warning("נא להזין לפחות 3 אותיות משם המוצר או המותג")
+            elif product_term.count(",") >= 4:
+                st.error("נראה שהדבקת רשימת רכיבים ולא שם של מוצר. כדי לבדוק רכיבים, עברי ללשונית צילום רשימת הרכיבים.")
             else:
                 try:
                     with st.spinner("מחפשת בקטלוג של דקל..."):
@@ -2762,13 +2949,46 @@ def tab_product():
         not_found_dialog(term, similar)
 
 
+def _select_catalog_product(slug):
+    entry = routine_entries_by_slug().get(slug)
+    if not entry:
+        return
+    names, results_map, meta = load_product_ingredients(slug)
+    st.session_state.results.update(results_map)
+    st.session_state.ocr_ingredients_text = "\n".join(names)
+    st.session_state.selected_product = {
+        "name": entry["name"], "name2": entry.get("name2", ""), "company": entry["company"], "description": "",
+        "slug": slug, "picture": "", "verified": entry.get("verified", True),
+    }
+    st.session_state.product_meta = meta
+
+
 def tab_compat():
+    how_box(
+        "🤝", "שילובים: מה אפשר להשתמש איתו",
+        "בוחרות מוצר אחד, ואנחנו משוות אותו לכל מוצרי הקטלוג של דקל לפי הרכיבים הפעילים שבהם. "
+        "התוצאה: מי מתאים לשימוש יחד איתו, מי רק בנפרד (בוקר מול ערב), ומי עדיף להימנע ממנו.",
+    )
+    with st.container(border=True):
+        section("🧴", "איזה מוצר לבדוק?", "בחרי מוצר מהקטלוג, או השתמשי במוצר שבחרת קודם")
+        options = routine_options()
+        choice = st.selectbox(
+            "מוצר לבדיקת שילובים", list(options), index=None, label_visibility="collapsed",
+            placeholder="התחילי להקליד שם של מוצר מהקטלוג", key=f"compat_pick_{st.session_state.manual_key}",
+        )
+        pick_col, tip_col = st.columns([1, 2], vertical_alignment="center")
+        if pick_col.button("בדקי שילובים", key="compat_go"):
+            slug = options.get(choice)
+            if slug:
+                _select_catalog_product(slug)
+                st.rerun()
+            else:
+                st.warning("בחרי מוצר מהרשימה שנפתחת בהקלדה")
+        tip_col.caption("ההשוואה מבוססת על הפעילים החזקים במוצר, כמו חומצות פילינג, רטינואידים וויטמין C.")
+
     product = st.session_state.selected_product
     if not (product and product.get("slug") and product.get("source") != "obf"):
-        st.info(
-            "כדי לראות אילו מוצרים אפשר לשלב, בחרי מוצר של דקל בלשונית 'צילום המוצר עצמו'. "
-            "ההשוואה זמינה למוצרים שנמצאו בקטלוג של דקל."
-        )
+        st.info("בחרי מוצר מהקטלוג כדי לראות איתו אילו מוצרים אפשר לשלב.")
         st.link_button("📊 טבלת ערבובי רכיבים של דקל", CONFLICTS_URL)
         return
     selected_product_banner()
@@ -2808,39 +3028,122 @@ def routine_slot_html(title, icon, items):
     return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div>{rows}</div>'
 
 
+def _add_candidate_to_routine(product):
+    """מוסיפה מוצר שנמצא בקטלוג (מחיפוש או מצילום) לשגרה."""
+    slug = product.get("slug")
+    if not slug:
+        return
+    if slug in routine_entries_by_slug():
+        add_to_routine(routine_entries_by_slug()[slug])
+        return
+    with st.spinner("מביאה את הרכיבים של המוצר..."):
+        names, results_map, meta = load_product_ingredients(slug)
+    st.session_state.results.update(results_map)
+    add_to_routine(custom_entry(slug, product["name"], product.get("company", ""), names, results_map, meta, product.get("verified", False)))
+
+
+def routine_add_panel():
+    with st.container(border=True):
+        section("➕", "הוספת מוצר לשגרה", "בוחרים דרך: חיפוש, צילום של המוצר, או צילום של רשימת הרכיבים")
+        t_search, t_product, t_list = st.tabs(["🔎 חיפוש לפי שם", "📦 צילום המוצר", "📋 צילום רכיבים"])
+
+        with t_search:
+            options = product_search_options()
+            choice = st.selectbox(
+                "שם מוצר", list(options), index=None, accept_new_options=True, label_visibility="collapsed",
+                placeholder="התחילי להקליד שם או מותג, בעברית או באנגלית",
+                key=f"routine_pick_{st.session_state.manual_key}",
+            )
+            term = options.get(choice, choice or "").strip()
+            if st.button("חפשי", key="routine_search"):
+                if len(term) < 3:
+                    st.warning("נא להזין לפחות 3 אותיות")
+                elif term.count(",") >= 4:
+                    st.error("נראה שהדבקת רשימת רכיבים. כדי להוסיף מרשימת רכיבים, השתמשי בלשונית צילום רכיבים.")
+                else:
+                    try:
+                        with st.spinner("מחפשת בקטלוג של דקל..."):
+                            st.session_state.routine_hits = search_products(term)
+                    except Exception:
+                        st.session_state.routine_hits = None
+                        st.error("לא הצלחתי לחפש כרגע. נסי שוב בעוד רגע.")
+            hits = st.session_state.get("routine_hits")
+            if hits is not None and not hits:
+                st.info("לא נמצא מוצר כזה בקטלוג של דקל. אפשר להוסיף אותו דרך צילום רשימת הרכיבים.")
+            for index, product in enumerate((hits or [])[:6]):
+                st.markdown(product_card_html(product), unsafe_allow_html=True)
+                if st.button("➕ הוסיפי לשגרה", key=f"rt_hit_{index}"):
+                    _add_candidate_to_routine(product)
+                    st.session_state.routine_hits = None
+                    st.rerun()
+
+        with t_product:
+            photo = st.file_uploader("תמונה של המוצר", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key=f"rt_photo_{st.session_state.uploader_key}")
+            st.caption("צלמי את חזית האריזה מקרוב, כשהמותג והשם נראים.")
+            if photo and st.button("🔎 זהי והציעי", key="rt_identify"):
+                identify_product(photo.getvalue())
+            status = st.session_state.product_status
+            if status == "wrong-list":
+                st.error("זו נראית כמו תמונה של רשימת רכיבים ולא של המוצר עצמו. השתמשי בלשונית צילום רכיבים.")
+            elif status in ("none", "no-text"):
+                st.info("לא זיהיתי מוצר מהתמונה. נסי לצלם שוב מקרוב, או חפשי לפי שם.")
+            if st.session_state.product_source == "dekel":
+                for index, product in enumerate(st.session_state.product_candidates[:4]):
+                    st.markdown(product_card_html(product), unsafe_allow_html=True)
+                    if st.button("➕ זה המוצר, הוסיפי לשגרה", key=f"rt_cand_{index}"):
+                        _add_candidate_to_routine(product)
+                        st.session_state.product_candidates = []
+                        st.session_state.product_status = None
+                        st.rerun()
+
+        with t_list:
+            photo2 = st.file_uploader("תמונה של רשימת הרכיבים", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key=f"rt_list_{st.session_state.uploader_key}")
+            name = st.text_input("איך לקרוא למוצר?", placeholder="למשל: סרום הלילה שלי", key=f"rt_list_name_{st.session_state.manual_key}")
+            if photo2 and st.button("✨ סרקי והוסיפי לשגרה", key="rt_list_go"):
+                with st.spinner("קוראת את הרכיבים..."):
+                    text, _boxes = extract_text(photo2.getvalue())
+                    hits, _t = ingredient_list_matches(text)
+                    ingredients = split_ingredients(text.replace(";", ","))
+                if hits < 2 or not ingredients:
+                    st.error("לא זיהיתי רשימת רכיבים בתמונה. נראה שזו תמונה של המוצר עצמו, אז השתמשי בלשונית צילום המוצר.")
+                else:
+                    with st.spinner("בודקת את הרכיבים..."):
+                        st.session_state.results.update(search_many([i for i in ingredients if i not in st.session_state.results]))
+                    title = name.strip() or f"מוצר מצילום ({ingredients[0]})"
+                    slug = "custom-" + re.sub(r"[^a-z0-9]+", "", (title + ingredients[0]).lower())[:24] + str(len(ingredients))
+                    add_to_routine(custom_entry(slug, title, "", ingredients, st.session_state.results, None))
+                    st.rerun()
+
+
+def routine_check_banner():
+    check = st.session_state.get("routine_check")
+    if not check:
+        return
+    if check["clashes"]:
+        lines = " ".join(
+            f"**{other}**: " + " ".join(f"{title}." for title, _r in found) for other, found in check["clashes"][:4]
+        )
+        st.warning(f"נוסף **{check['name']}**. בדיקת השגרה: יש התנגשות עם {lines} כדאי להפריד בין הבוקר לערב או בין ימים.")
+    else:
+        st.success(f"נוסף **{check['name']}**. בדיקת השגרה: אין התנגשות עם שאר המוצרים.")
+    if st.button("הבנתי", key="rt_check_ok"):
+        st.session_state.routine_check = None
+        st.rerun()
+
+
 def tab_routine():
     how_box(
         "🗓️", "השגרה שלי",
-        "מוסיפות את המוצרים שאת משתמשת בהם, ואנחנו מסדרות אותם לבוקר ולערב לפי סדר ההנחה, "
-        "ומתריעות אם יש מוצרים שלא כדאי לשלב ביניהם.",
+        "מוסיפות את המוצרים שאת משתמשת בהם בחיפוש, בצילום המוצר או בצילום הרכיבים. "
+        "אחרי כל הוספה אנחנו בודקות אם הוא מתנגש עם מה שכבר בשגרה, ומסדרות הכול לבוקר ולערב.",
     )
-    by_slug = routine_entries_by_slug()
-    with st.container(border=True):
-        section("➕", "הוספת מוצר", "התחילי להקליד שם של מוצר מהקטלוג של דקל, בעברית או באנגלית")
-        options = routine_options()
-        choice = st.selectbox(
-            "מוצר לשגרה",
-            list(options),
-            index=None,
-            label_visibility="collapsed",
-            placeholder="למשל: סרווה, The Ordinary, סרום...",
-            key=f"routine_pick_{st.session_state.manual_key}",
-        )
-        if st.button("➕ הוסיפי לשגרה", key="routine_add"):
-            slug = options.get(choice)
-            if not slug:
-                st.warning("בחרי מוצר מהרשימה שנפתחת בהקלדה")
-            elif slug in st.session_state.routine:
-                st.info("המוצר כבר בשגרה")
-            else:
-                st.session_state.routine.append(slug)
-                save_routine()
-                st.rerun()
-
+    routine_check_banner()
+    routine_add_panel()
+    by_slug = routine_lookup()
     st.session_state.routine = [slug for slug in st.session_state.routine if slug in by_slug]
     entries = [by_slug[slug] for slug in st.session_state.routine]
     if not entries:
-        st.info("עוד אין מוצרים בשגרה. אפשר להוסיף מוצר כאן, או אחרי זיהוי מוצר בלשונית 'צילום המוצר עצמו'.")
+        st.info("עוד אין מוצרים בשגרה. הוסיפי מוצר באחת הדרכים שלמעלה.")
         return
 
     with st.container(border=True):
@@ -2857,6 +3160,7 @@ def tab_routine():
             if right.button("הסרה", key=f"routine_rm_{index}"):
                 st.session_state.routine.remove(entry["slug"])
                 save_routine()
+                st.session_state.routine_check = None
                 st.rerun()
 
     slots, conflicts, notes = plan_routine(entries, categories_of)
@@ -2992,7 +3296,20 @@ def home_tile_css():
     return f"<style>{''.join(rules)}</style>" if rules else ""
 
 
+def account_bar():
+    user = current_user()
+    if user:
+        left, right = st.columns([3, 1], vertical_alignment="center")
+        left.caption(f"מחוברת כ-{user['email']}. הפרופיל, השגרה וההיסטוריה שלך נשמרים בחשבון.")
+        if right.button("התנתקות", key="logout_btn"):
+            st.session_state.cloud_loaded = None
+            st.logout()
+    else:
+        st.caption("התחברות עם גוגל שומרת את הפרופיל, השגרה וההיסטוריה שלך בין ביקורים ובין מכשירים.")
+
+
 def tab_home():
+    account_bar()
     st.markdown(home_tile_css(), unsafe_allow_html=True)
     st.markdown(hero_html(), unsafe_allow_html=True)
     st.markdown(marquee_html(), unsafe_allow_html=True)
@@ -3115,6 +3432,7 @@ render_coupon_alerts()
 }[active_tab]()
 
 render_bottom_nav(active_tab)
+sync_account_data()
 
 st.markdown(
     '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'
