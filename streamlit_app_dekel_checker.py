@@ -1399,6 +1399,7 @@ def reset_all():
     st.session_state.product_meta = None
     st.session_state.celebrate_id = None
     st.session_state.result_popup = False
+    st.session_state.photo_overlay = None
     st.session_state.nv_product = None
     st.session_state.product_hits = None
     st.session_state.nf_pending = None
@@ -1505,6 +1506,8 @@ if "auto_scan" not in st.session_state:
     st.session_state.auto_scan = False
 if "result_popup" not in st.session_state:
     st.session_state.result_popup = False
+if "photo_overlay" not in st.session_state:
+    st.session_state.photo_overlay = None
 if "history" not in st.session_state:
     st.session_state.history = []
 if "photo_thumb" not in st.session_state:
@@ -1571,17 +1574,28 @@ def get_ocr_reader():
 
 @st.cache_data(show_spinner=False)
 def extract_text(image_bytes):
+    """מחזירה (טקסט, תיבות): תיבות הטקסט באחוזים מגודל התמונה, להצגה על התמונה."""
     image = open_image(io.BytesIO(image_bytes))
     processed_image = preprocess_for_ocr(image)
-    results = get_ocr_reader().readtext(np.array(processed_image), detail=0, canvas_size=MAX_OCR_SIDE)
-    extracted_text = " ".join(results)
+    results = get_ocr_reader().readtext(np.array(processed_image), detail=1, canvas_size=MAX_OCR_SIDE)
+    width, height = processed_image.size
+    boxes = []
+    for box, text, _confidence in results:
+        xs = [point[0] for point in box]
+        ys = [point[1] for point in box]
+        boxes.append({
+            "x": max(0.0, min(xs)) / width * 100, "y": max(0.0, min(ys)) / height * 100,
+            "w": (max(xs) - min(xs)) / width * 100, "h": (max(ys) - min(ys)) / height * 100, "text": text,
+        })
+    extracted_text = " ".join(text for _box, text, _c in results)
     # מסירה כותרות "Ingredients" שנדבקות לרכיב הראשון בלי פסיק
-    return re.sub(
+    cleaned = re.sub(
         r"^[\W_]*(?:(?:ingredients?|ingr[eé]dients?)[\s:/]*|\d+\s+)*",
         "",
         extracted_text,
         flags=re.IGNORECASE,
     )
+    return cleaned, boxes
 
 
 MAX_OCR_SIDE = 1920
@@ -1899,6 +1913,52 @@ def key_points_html(checked, results_map, meta):
     return f'<div class="kps">{items}</div>'
 
 
+TONE_RANK = {"bad": 3, "caution": 2, "good": 1, "other": 0}
+
+
+def _norm_text(text):
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
+def match_boxes(boxes, ingredients, results_map):
+    """לכל תיבת טקסט: הרכיבים שהיא מכילה, והגוון של הגרוע שביניהם. [(תיבה, גוון, [רכיבים])]"""
+    normalized = [(name, _norm_text(name)) for name in ingredients if len(_norm_text(name)) >= 3]
+    matched = []
+    for box in boxes:
+        text = _norm_text(box["text"])
+        if len(text) < 3:
+            continue
+        hits = [name for name, key in normalized if key in text or (len(text) >= 5 and text in key)]
+        if not hits:
+            continue
+        worst = max(hits, key=lambda name: TONE_RANK.get(EMOJI_CLASS.get(results_map[name]["emoji"], "other"), 0))
+        matched.append((box, _tone(results_map[worst]), hits))
+    return matched
+
+
+def live_photo_html(overlay, checked, results_map):
+    matched = match_boxes(overlay["boxes"], checked, results_map)
+    if not matched:
+        return ""
+    img = base64.b64encode(overlay["img"]).decode("ascii")
+    try:
+        with Image.open(io.BytesIO(overlay["img"])) as im:
+            ratio = im.width / im.height
+    except Exception:
+        ratio = 1.0
+    marks = "".join(
+        f'<i class="hl {tone}" style="left:{box["x"]:.2f}%;top:{box["y"]:.2f}%;width:{box["w"]:.2f}%;height:{box["h"]:.2f}%;--i:{index}" '
+        f'title="{html.escape(", ".join(hits))}"></i>'
+        for index, (box, tone, hits) in enumerate(matched)
+    )
+    found = len({name for _b, _t, hits in matched for name in hits})
+    return (
+        f'<div class="live reveal"><div class="live-frame" style="--ar:{ratio:.3f}"><img alt="" src="data:image/jpeg;base64,{img}">{marks}'
+        '<div class="live-laser"></div></div>'
+        f'<div class="live-cap">זוהו {found} מתוך {len(checked)} רכיבים על התמונה. הצבע מראה את הדירוג של כל רכיב.</div></div>'
+    )
+
+
 def chapter_html(number, title, subtitle=""):
     sub = f'<div class="chap-s">{html.escape(subtitle)}</div>' if subtitle else ""
     return (
@@ -1959,7 +2019,20 @@ def show_summary(ingredients):
         if st.button(f"{NAV_ICONS['profile']} רוצה התאמה אישית? הגדירי פרופיל עור", key="pf_prompt", use_container_width=True):
             profile_dialog()
 
-    st.markdown(chapter_html("02", "ספקטרום הרכיבים", "כל פס הוא רכיב אחד, לפי הסדר ברשימה"), unsafe_allow_html=True)
+    step = ["02"]
+
+    def next_chapter(title, subtitle=""):
+        st.markdown(chapter_html(step[0], title, subtitle), unsafe_allow_html=True)
+        step[0] = f"{int(step[0]) + 1:02d}"
+
+    overlay = st.session_state.photo_overlay
+    if overlay:
+        live = live_photo_html(overlay, checked, results_map)
+        if live:
+            next_chapter("התמונה שלך, מוארת", "הרכיבים שזוהו על האריזה, בצבע הדירוג שלהם")
+            st.markdown(live, unsafe_allow_html=True)
+
+    next_chapter("ספקטרום הרכיבים", "כל פס הוא רכיב אחד, לפי הסדר ברשימה")
     st.markdown(spectrum_html(checked, results_map), unsafe_allow_html=True)
     st.markdown(
         '<div class="tiles">'
@@ -1979,7 +2052,7 @@ def show_summary(ingredients):
         )
         st.markdown(f'<div class="legend">הירוקים לפי דרגה: {pills}</div>', unsafe_allow_html=True)
 
-    st.markdown(chapter_html("03", "הרכיבים המובילים", "הרכיבים הראשונים ברשימה, שנמצאים בריכוז הגבוה ביותר"), unsafe_allow_html=True)
+    next_chapter("הרכיבים המובילים", "הרכיבים הראשונים ברשימה, שנמצאים בריכוז הגבוה ביותר")
     st.markdown(ribbons_html(checked, results_map), unsafe_allow_html=True)
     if len(checked) > 12:
         if st.button(f"{NAV_ICONS['list']} לכל {len(checked)} הרכיבים", key="open_table", use_container_width=True):
@@ -1988,7 +2061,7 @@ def show_summary(ingredients):
     warn = warnings_card_html(checked, results)
     flagged = [ing for ing in checked if results_map[ing]["emoji"] in ("🟡", "🔴")]
     if warn or flagged:
-        st.markdown(chapter_html("04", "כדאי לשים לב", "אזהרות ורכיבים שמסומנים 'על תנאי' או 'רע'"), unsafe_allow_html=True)
+        next_chapter("כדאי לשים לב", "אזהרות ורכיבים שמסומנים 'על תנאי' או 'רע'")
         if warn:
             st.markdown(warn, unsafe_allow_html=True)
         for ing in flagged:
@@ -1996,7 +2069,7 @@ def show_summary(ingredients):
             with st.expander(f"{r['emoji']} {ing} · {r['rating']}"):
                 render_result(ing, r)
 
-    st.markdown(chapter_html("05" if (warn or flagged) else "04", "איך להשתמש", "מתי, באיזו תדירות ועם מה לא לשלב"), unsafe_allow_html=True)
+    next_chapter("איך להשתמש", "מתי, באיזו תדירות ועם מה לא לשלב")
     guide_col, groups_col = st.columns(2)
     if guide_col.button(f"{NAV_ICONS['compat']} מדריך שימוש", key="open_guide", use_container_width=True):
         guide_dialog(checked)
@@ -2287,6 +2360,7 @@ def choose_dekel_product(product, from_photo=False):
     st.session_state.results.update(results)
     st.session_state.ocr_ingredients_text = "\n".join(names)
     st.session_state.selected_product = product
+    st.session_state.photo_overlay = None
     st.session_state.product_meta = meta
     st.session_state.product_candidates = []
     st.session_state.product_status = None
@@ -2444,7 +2518,7 @@ def tab_ingredients():
             if st.button("✨ סרקי את הרכיבים מהתמונה"):
                 started = time.time()
                 with st.spinner("קוראת את הטקסט מהתמונה..."):
-                    extracted_text = extract_text(uploaded_image.getvalue())
+                    extracted_text, ocr_boxes = extract_text(uploaded_image.getvalue())
                 st.caption(f"זיהוי הטקסט לקח {time.time() - started:.0f} שניות")
 
                 with st.expander("הטקסט הגולמי שזוהה"):
@@ -2455,6 +2529,9 @@ def tab_ingredients():
                 st.session_state.selected_product = None
                 st.session_state.product_meta = None
                 st.session_state.auto_scan = True
+                st.session_state.photo_overlay = {
+                    "img": make_thumb(uploaded_image.getvalue(), 1000), "boxes": ocr_boxes,
+                }
                 if ingredients:
                     add_history(
                         "ingredients", "i:" + "|".join(ingredients[:6]).lower(),

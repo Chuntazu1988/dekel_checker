@@ -1978,3 +1978,25 @@ html[data-mode="light"] .rib-n { opacity: 1; }
 html[data-mode="light"] .chip.grade-pass, html[data-mode="light"] .ugchip.grade-pass { color: #566B0D; }
 html[data-mode="light"] .chip.grade-good, html[data-mode="light"] .ugchip.grade-good { color: #256E25; }
 html[data-mode="light"] .warn-title b { color: #8A5E12; }
+
+
+/* ---------- התמונה שלך, מוארת: הרכיבים שזוהו נדלקים בצבע הדירוג ---------- */
+.live { margin: 0.4rem 0 1rem; }
+.live-frame { position: relative; border-radius: var(--r-lg); overflow: hidden; border: 1px solid rgba(var(--p-rgb), 0.5); box-shadow: var(--sh-3); background: #000; }
+.live-frame img { display: block; width: 100%; height: auto; filter: brightness(0.62) saturate(0.9); transition: filter 1.4s ease; }
+.live.in .live-frame img { filter: brightness(0.78) saturate(1); }
+.hl { position: absolute; border-radius: 5px; border: 2px solid var(--c-other); background: rgba(140, 127, 166, 0.28); opacity: 0; transform: scale(1.35); box-shadow: 0 0 0 0 transparent;
+    transition: opacity 0.5s ease, transform 0.6s var(--ease), box-shadow 0.8s ease; transition-delay: calc(var(--i) * 70ms + 500ms); cursor: help; }
+.live.in .hl, .no-reveal .hl { opacity: 1; transform: none; }
+.hl.good { border-color: var(--c-good); background: rgba(31, 166, 122, 0.30); box-shadow: 0 0 14px rgba(31, 166, 122, 0.7); }
+.hl.caution { border-color: var(--c-caution); background: rgba(217, 161, 58, 0.32); box-shadow: 0 0 14px rgba(217, 161, 58, 0.7); }
+.hl.bad { border-color: var(--c-bad); background: rgba(216, 72, 95, 0.34); box-shadow: 0 0 16px rgba(216, 72, 95, 0.8); }
+.hl.grade-excellent { border-color: #19E58E; background: rgba(25, 229, 142, 0.30); box-shadow: 0 0 16px rgba(25, 229, 142, 0.8); }
+.hl.grade-good { border-color: #6BD36B; background: rgba(107, 211, 107, 0.28); }
+.hl.grade-pass { border-color: #B6D04A; background: rgba(182, 208, 74, 0.26); }
+.hl:hover { background: rgba(255, 255, 255, 0.35); }
+.live-laser { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, transparent, var(--gold-l), transparent); box-shadow: 0 0 28px 8px rgba(228, 201, 160, 0.55); opacity: 0; }
+.live.in .live-laser { animation: livescan 2.6s ease-in-out 0.2s 1 both; }
+@keyframes livescan { 0% { top: 0; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.live-cap { margin-top: 0.6rem; text-align: center; font-size: 0.88rem; color: var(--muted); }
+.live-frame { width: min(100%, calc(76vh * var(--ar, 1))); margin-inline: auto; }
