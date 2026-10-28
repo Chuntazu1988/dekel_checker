@@ -2088,3 +2088,92 @@ html[data-mode] .stApp [class*="st-key-go_"] button::after { width: 7.2rem; heig
 .stage .plink { color: #fff !important; border-color: rgba(255, 255, 255, 0.6); }
 .stage::before { background: repeating-conic-gradient(from 0deg at 85% 40%, transparent 0 9deg, rgba(255, 255, 255, 0.07) 9.5deg 10deg); }
 .stage .stage-photo i { background: radial-gradient(circle at 50% 38%, #fff 0%, #f7eefc 62%, #d9c6ee 100%); }
+
+
+/* =====================================================================
+   סגנון בנטו גם בתוצאות, בשגרה ובשילובים
+   ===================================================================== */
+.tiles { gap: 0.8rem; }
+.stApp .tile { border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--tile-r); padding: 1.3rem 0.6rem; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25); color: #fff; }
+.stApp .tile::before { display: none; }
+.stApp .tile.good { background: linear-gradient(150deg, #2FD6B4, #0F8F86 80%) !important; }
+.stApp .tile.caution { background: linear-gradient(150deg, #FFC857, #E08A1E 85%) !important; }
+.stApp .tile.bad { background: linear-gradient(150deg, #FF6A87, #C8264F 85%) !important; }
+.stApp .tile.other { background: linear-gradient(150deg, #A58BFF, #5B3AC8 85%) !important; }
+.stApp .tile .num { color: #fff; text-shadow: 0 4px 22px rgba(0, 0, 0, 0.3); font: 900 3.4rem/1 var(--serif); }
+.stApp .tile .lbl { color: rgba(255, 255, 255, 0.92); font-weight: 600; }
+.stApp .tile.caution .num, .stApp .tile.caution .lbl { color: #3B2200; text-shadow: none; }
+
+.rt-grid { gap: 1rem; }
+.stApp .rt-col { border-radius: var(--tile-r); padding: 1.2rem 1.1rem; color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 28px 70px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.stApp .rt-col:nth-child(1) { background: linear-gradient(150deg, #FFB347 0%, #F2677A 100%); }
+.stApp .rt-col:nth-child(2) { background: linear-gradient(150deg, #5B33E0 0%, #1E1A5F 100%); }
+.rt-head { font: 700 1.7rem var(--serif); color: #fff; }
+.stApp .rt-col .rt-item { border-top-color: rgba(255, 255, 255, 0.25); }
+.stApp .rt-col .rt-item b { color: #fff; font-family: var(--serif); font-size: 1.1rem; }
+.stApp .rt-col .rt-item small { color: rgba(255, 255, 255, 0.82); }
+.stApp .rt-col .rt-n { background: rgba(255, 255, 255, 0.25); color: #fff; }
+.stApp .rt-col .cx-empty { color: rgba(255, 255, 255, 0.85); }
+.rt-img { width: 3.2rem; height: 3.2rem; background: #fff; border-radius: 12px; padding: 3px; }
+
+.cx-chip { flex-direction: row; align-items: center; gap: 0.7rem; padding: 0.4rem 0.9rem 0.4rem 0.5rem; border-radius: 18px; }
+.cx-img { width: 2.7rem; height: 2.7rem; object-fit: contain; flex: none; border-radius: 10px; background: #fff; padding: 2px; }
+.cx-t { display: flex; flex-direction: column; min-width: 0; }
+.cx-group .cx-type { font: 700 1.2rem var(--serif); }
+
+/* כניסת אריחים בבית: עולים בהדרגה */
+html.just-entered.just-entered .stApp .st-key-go_list button { animation: cardrise 0.9s var(--ease) 0.9s both !important; }
+html.just-entered.just-entered .stApp .st-key-go_product button { animation: cardrise 0.9s var(--ease) 1.05s both !important; }
+html.just-entered.just-entered .stApp .st-key-go_search button { animation: cardrise 0.9s var(--ease) 1.2s both !important; }
+
+
+/* =====================================================================
+   Sleek: מעודן. זכוכית כהה, קו דק, זוהר צבע עדין בפינה, בלי מילוי צבע גס
+   ===================================================================== */
+:root { --tile-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.015)), #0E0B15; --tile-line: rgba(255, 255, 255, 0.10); --tile-ink: #F3EDE4; --tile-sub: #A99DB8; }
+html[data-mode="light"] { --tile-bg: linear-gradient(160deg, #ffffff, #F6F1F8); --tile-line: rgba(var(--p-rgb), 0.18); --tile-ink: #231B2B; --tile-sub: #6B5C78; }
+
+html[data-theme="night"] { --hero-bg: radial-gradient(520px 320px at 14% 55%, rgba(255, 111, 168, 0.30), transparent 70%), radial-gradient(600px 340px at 96% 0%, rgba(124, 92, 255, 0.35), transparent 70%), linear-gradient(135deg, #130C24 0%, #1F1040 60%, #2B1450 100%); }
+html[data-theme="aurora"] { --hero-bg: radial-gradient(520px 320px at 14% 55%, rgba(34, 211, 238, 0.25), transparent 70%), radial-gradient(600px 340px at 96% 0%, rgba(255, 79, 168, 0.30), transparent 70%), linear-gradient(135deg, #0D0820 0%, #1B0F3F 100%); }
+.hero { border: 1px solid rgba(255, 255, 255, 0.12) !important; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important; }
+
+html[data-mode] .stApp .st-key-go_list button, html[data-mode] .stApp .st-key-go_product button, html[data-mode] .stApp .st-key-go_search button {
+    --acc: 255, 111, 168;
+    background-image: radial-gradient(300px 220px at 88% 0%, rgba(var(--acc), 0.30), transparent 70%), var(--tile-bg) !important; background-color: transparent !important;
+    border: 1px solid var(--tile-line) !important; border-radius: 26px !important; min-height: 18rem;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 -60px 80px -60px rgba(var(--acc), 0.18) !important;
+}
+html[data-mode] .stApp .st-key-go_product button { --acc: 142, 107, 255; }
+html[data-mode] .stApp .st-key-go_search button { --acc: 47, 214, 180; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { color: var(--tile-sub) !important; text-shadow: none !important; font-size: 0.86rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button p strong { color: var(--tile-ink) !important; font-size: 1.65rem !important; font-weight: 700; margin-bottom: 0.35rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button::before { display: grid !important; content: "\2196" !important; position: absolute; top: 1.2rem; left: 1.2rem; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 50%; border: 1px solid rgba(var(--acc), 0.55); color: rgb(var(--acc)); font-size: 1.1rem; background: rgba(var(--acc), 0.08); box-shadow: none; margin: 0; transition: background 0.3s ease, transform 0.4s var(--ease); }
+html[data-mode] .stApp [class*="st-key-go_"] button:hover::before { background: rgba(var(--acc), 0.25); transform: translate(-3px, -3px); }
+html[data-mode] .stApp [class*="st-key-go_"] button::after { filter: drop-shadow(0 24px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 28px rgba(var(--acc), 0.30)); }
+html[data-mode] .stApp [class*="st-key-go_"] button:hover { transform: translateY(-6px); border-color: rgba(var(--acc), 0.55) !important; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6), 0 0 50px -10px rgba(var(--acc), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important; }
+
+.stApp .stat, .stApp .tile { background: var(--tile-bg) !important; border: 1px solid var(--tile-line) !important; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important; color: var(--tile-ink); position: relative; overflow: hidden; }
+.stApp .stat::after, .stApp .tile::after { content: ""; position: absolute; top: 0; left: 18%; right: 18%; height: 2px; border-radius: 2px; background: var(--ac, #8E6BFF); box-shadow: 0 0 18px 2px var(--ac, #8E6BFF); }
+.stApp .stat.st0, .stApp .tile.good { --ac: #2FD6B4; } .stApp .stat.st1 { --ac: #FFD36B; } .stApp .tile.caution { --ac: #FFC857; } .stApp .stat.st2, .stApp .tile.bad { --ac: #FF6F8E; } .stApp .tile.other { --ac: #A58BFF; }
+.stApp .stat b, .stApp .tile .num { color: var(--ac) !important; text-shadow: 0 0 30px color-mix(in srgb, var(--ac) 60%, transparent); }
+.stApp .tile .num { font: 800 3rem/1 var(--serif); }
+.stApp .stat span, .stApp .tile .lbl { color: var(--tile-sub) !important; font-weight: 500; }
+html[data-mode="light"] .stApp .stat b, html[data-mode="light"] .stApp .tile .num { text-shadow: none; filter: brightness(0.7); }
+
+.stApp .rt-col { background-image: radial-gradient(260px 200px at 90% 0%, rgba(255, 179, 71, 0.22), transparent 70%), var(--tile-bg) !important; color: var(--tile-ink); border: 1px solid var(--tile-line); }
+.stApp .rt-col:nth-child(2) { background-image: radial-gradient(260px 200px at 90% 0%, rgba(124, 92, 255, 0.28), transparent 70%), var(--tile-bg) !important; }
+.rt-head { color: var(--tile-ink) !important; }
+.stApp .rt-col .rt-item b { color: var(--tile-ink); }
+.stApp .rt-col .rt-item small, .stApp .rt-col .cx-empty { color: var(--tile-sub); }
+.stApp .rt-col .rt-n { background: rgba(255, 255, 255, 0.10); color: var(--tile-ink); }
+.stApp .rt-col .rt-item { border-top-color: var(--tile-line); }
+
+.how, .stage { background-image: radial-gradient(420px 240px at 8% 50%, rgba(255, 111, 168, 0.22), transparent 70%), radial-gradient(420px 240px at 100% 0%, rgba(124, 92, 255, 0.28), transparent 70%), var(--tile-bg) !important; border: 1px solid var(--tile-line) !important; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important; }
+.how b, .stage .stage-name, .stage .stage-name2 { color: var(--tile-ink) !important; text-shadow: none; }
+.how span:not(.how-ico):not(.msr) { color: var(--tile-sub) !important; text-shadow: none; }
+.how .msr { color: var(--gold-l) !important; }
+html[data-mode="light"] .how .msr { color: var(--pink-d) !important; }
+.stage .stage-brand { color: var(--gold-l); } .stage .plink { color: var(--aqua-d) !important; border-color: currentColor; }
+html[data-mode] .stApp [class*="st-key-go_"] button::before { top: auto !important; left: auto !important; bottom: 1.2rem; right: 1.2rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button:hover::before { transform: translate(3px, -3px); }
+.mq-track img { border-radius: 14px; opacity: 0.94; }

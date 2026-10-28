@@ -1080,7 +1080,8 @@ def compat_group_html(rows, with_reasons, chosen):
             brand = entry["company"].split("|")[-1].strip()
             chips.append(
                 f'<a class="cx-chip" href="{html.escape(url)}" target="_blank" rel="noopener">'
-                f'<b>{html.escape(entry["name"])}</b><small>{html.escape(brand)}</small></a>'
+                f'{"<img class=cx-img alt= src=" + chr(34) + thumb_uri(entry["slug"]) + chr(34) + ">" if thumb_uri(entry["slug"]) else ""}'
+                f'<span class="cx-t"><b>{html.escape(entry["name"])}</b><small>{html.escape(brand)}</small></span></a>'
             )
         reasons = ""
         if with_reasons:
