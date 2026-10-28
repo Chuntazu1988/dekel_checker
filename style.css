@@ -2195,3 +2195,11 @@ html[data-mode] .stApp [class*="st-key-go_"] button:hover::before { transform: t
 [data-testid="stToast"] *, [data-testid="stToastContainer"] * { color: #F3EDE4 !important; }
 html[data-mode="light"] [data-testid="stToast"], html[data-mode="light"] [data-testid="stToast"] > div { background: #fff !important; }
 html[data-mode="light"] [data-testid="stToast"] * { color: #231B2B !important; }
+[data-testid="stToast"] > div, [data-testid="stToast"] > div > div { border: none !important; box-shadow: none !important; background: transparent !important; }
+html[data-mode="dark"] [data-baseweb="select"] > div, html[data-mode="dark"] [data-baseweb="select"] > div > div, html[data-mode="dark"] [data-testid="stSelectbox"] [data-baseweb="select"] div[value], html[data-mode="dark"] [data-baseweb="select"] [role="combobox"], html[data-mode="dark"] [data-baseweb="select"] [role="combobox"] > div { background: rgba(255, 255, 255, 0.06) !important; color: var(--ink) !important; }
+html[data-mode="dark"] [data-baseweb="select"] [role="combobox"] > div, html[data-mode="dark"] [data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"] { background: transparent !important; }
+html[data-mode="dark"] [data-baseweb="select"] > div { background: rgba(255, 255, 255, 0.06) !important; }
+[data-baseweb="select"] svg { color: var(--ink); fill: var(--ink); }
+[data-baseweb="popover"] [role="listbox"], [data-baseweb="popover"] ul { background: var(--bg) !important; color: var(--ink) !important; border: 1px solid var(--tile-line); }
+[data-baseweb="popover"] li { background: transparent !important; color: var(--ink) !important; }
+[data-baseweb="popover"] li:hover { background: rgba(var(--p-rgb), 0.18) !important; }
