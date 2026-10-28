@@ -1677,6 +1677,7 @@ if _user:
     load_account_data(_user)
 if not st.session_state.entered:
     render_gate()
+    st.markdown('<div class="copyright gate-copy">© כל הזכויות שמורות לנטע ונטוררו שבירו</div>', unsafe_allow_html=True)
     st.stop()
 
 st.markdown(brand_html(), unsafe_allow_html=True)
@@ -3559,6 +3560,7 @@ sync_account_data()
 
 st.markdown(
     '<div class="to-top-wrap"><a class="to-top" href="#">↑ חזרה למעלה</a></div>'
-    '<div class="footer">אפליקציה לא רשמית ולא קשורה לדקל. המידע מבוסס על מילון הרכיבים והקטלוג באתר דקל.</div>',
+    '<div class="footer">אפליקציה לא רשמית ולא קשורה לדקל. המידע מבוסס על מילון הרכיבים והקטלוג באתר דקל.</div>'
+    '<div class="copyright">© כל הזכויות שמורות לנטע ונטוררו שבירו</div>',
     unsafe_allow_html=True,
 )

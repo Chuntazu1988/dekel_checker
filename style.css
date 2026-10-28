@@ -2332,3 +2332,7 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 [data-testid="stToggle"] [data-baseweb="checkbox"] > div:first-of-type { direction: ltr !important; overflow: hidden; }
 [data-testid="stToggle"] [data-baseweb="checkbox"] > span:first-of-type > div,
 [data-testid="stToggle"] [data-baseweb="checkbox"] > div:first-of-type > div { direction: ltr !important; }
+
+/* זכויות יוצרים בתחתית כל המסכים */
+.copyright { text-align: center; color: var(--muted); font: 500 0.8rem var(--sans); letter-spacing: 0.04em; padding: 0.4rem 0 6.5rem; }
+.copyright.gate-copy { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.8rem 0; color: rgba(228, 201, 160, 0.7); z-index: 5; pointer-events: none; }
