@@ -1375,7 +1375,7 @@ def stats_html():
         (len(products), "מוצרים בקטלוג"), (verified, "מאושרי Dekel Verified"), (ingredients, "רכיבים מדורגים"),
     )
     cells = "".join(
-        f'<div class="stat" style="--i:{n}"><b class="num" data-t="{value}">{value}</b><span>{html.escape(label)}</span></div>'
+        f'<div class="stat st{n}" style="--i:{n}"><b class="num" data-t="{value}">{value}</b><span>{html.escape(label)}</span></div>'
         for n, (value, label) in enumerate(items)
     )
     return f'<div class="stats">{cells}</div>'
@@ -2911,7 +2911,18 @@ def render_bottom_nav(active):
 SAMPLE_SLUG = "the-ordinary-glycolic-acid-7-exfoliating-toner"
 
 
+def home_tile_css():
+    slugs = showcase_slugs(3, offset=11)
+    rules = []
+    for key, slug in zip(("go_list", "go_product", "go_search"), slugs):
+        uri = thumb_uri(slug)
+        if uri:
+            rules.append(f'.st-key-{key} button::after{{background-image:url("{uri}") !important}}')
+    return f"<style>{''.join(rules)}</style>" if rules else ""
+
+
 def tab_home():
+    st.markdown(home_tile_css(), unsafe_allow_html=True)
     st.markdown(hero_html(), unsafe_allow_html=True)
     st.markdown(marquee_html(), unsafe_allow_html=True)
     st.markdown(stats_html(), unsafe_allow_html=True)

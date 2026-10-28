@@ -2000,3 +2000,91 @@ html[data-mode="light"] .warn-title b { color: #8A5E12; }
 @keyframes livescan { 0% { top: 0; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 .live-cap { margin-top: 0.6rem; text-align: center; font-size: 0.88rem; color: var(--muted); }
 .live-frame { width: min(100%, calc(76vh * var(--ar, 1))); margin-inline: auto; }
+
+
+/* =====================================================================
+   "Noir Bento": זכוכית כהה עתידנית + אריחי בנטו גדולים עם תמונות מוצרים
+   ===================================================================== */
+:root { --tile-r: 30px; }
+html[data-theme="night"] { --hero-bg: linear-gradient(135deg, #3B1AB8 0%, #8E2FC4 60%, #E9498F 112%); --bg: #07060C; }
+html[data-theme="aurora"] { --hero-bg: linear-gradient(135deg, #2A1280 0%, #7A2BD8 55%, #FF4FA8 115%); }
+
+/* בלי מסגרות עתיקות: זכוכית עם קו דק וזוהר פנימי */
+.stApp [data-testid="stVerticalBlockBorderWrapper"] { border: 1px solid rgba(255, 255, 255, 0.14) !important; border-image: none !important; border-radius: var(--tile-r) !important;
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)), var(--glass) !important; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+html[data-mode="light"] .stApp [data-testid="stVerticalBlockBorderWrapper"] { border-color: rgba(var(--p-rgb), 0.22) !important; background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.75)) !important; box-shadow: var(--sh-2); }
+.stApp [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlockBorderWrapper"] { border-radius: var(--r-lg) !important; box-shadow: none; }
+.how { border: 1px solid rgba(255, 255, 255, 0.14) !important; border-image: none !important; border-radius: var(--tile-r) !important; padding: 1.4rem 1.6rem; }
+html[data-mode="light"] .how { border-color: rgba(var(--p-rgb), 0.25) !important; }
+
+/* הירו כאריח ענק */
+.hero { border-radius: 38px !important; border: 1px solid rgba(255, 255, 255, 0.22) !important; box-shadow: 0 40px 100px rgba(60, 20, 140, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important; }
+.hero h1 { font-family: var(--serif) !important; font-weight: 700; }
+.hero::after { background: radial-gradient(420px 260px at 12% 45%, rgba(255, 255, 255, 0.22), transparent 70%), repeating-conic-gradient(from 0deg at 12% 50%, transparent 0 9deg, rgba(255, 255, 255, 0.05) 9.5deg 10deg); }
+.hero-mascot i { background: radial-gradient(circle, rgba(255, 255, 255, 0.45), transparent 66%); }
+
+/* שלושת אריחי הפעולה: אריחי בנטו גבוהים עם מוצר שמטפס מהפינה */
+.stApp .st-key-go_list button, .stApp .st-key-go_product button, .stApp .st-key-go_search button,
+html[data-mode="dark"] .stApp .st-key-go_list button, html[data-mode="dark"] .stApp .st-key-go_product button, html[data-mode="dark"] .stApp .st-key-go_search button {
+    border: 1px solid rgba(255, 255, 255, 0.2) !important; border-image: none !important; border-radius: var(--tile-r) !important; min-height: 17rem; padding: 1.6rem 1.4rem !important;
+    display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-end; text-align: right; overflow: hidden !important; position: relative;
+    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important; outline: none !important; animation: none !important;
+    transition: transform 0.45s var(--ease), box-shadow 0.45s ease;
+}
+.stApp .st-key-go_list button { background: linear-gradient(150deg, #FF6FA8 0%, #D13B8B 55%, #7A2BD8 130%) !important; }
+.stApp .st-key-go_product button { background: linear-gradient(150deg, #8E6BFF 0%, #5B33E0 60%, #2B1A80 130%) !important; }
+.stApp .st-key-go_search button { background: linear-gradient(150deg, #2FD6B4 0%, #1496A8 60%, #1B4B9B 130%) !important; }
+.stApp .st-key-go_list button::before, .stApp .st-key-go_product button::before, .stApp .st-key-go_search button::before { display: none !important; }
+.stApp [class*="st-key-go_"] button::after {
+    display: block !important; content: "" !important; position: absolute !important; left: 0.9rem; bottom: -1.2rem; top: auto !important; width: 8.4rem; height: 10.2rem; margin: 0 !important;
+    background: center / contain no-repeat; transform: rotate(-9deg); transform-origin: bottom left; filter: drop-shadow(0 26px 22px rgba(0, 0, 0, 0.5)); transition: transform 0.55s var(--ease); opacity: 1 !important;
+}
+.stApp [class*="st-key-go_"] button:hover { transform: translateY(-8px) scale(1.015); box-shadow: 0 46px 100px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important; }
+.stApp [class*="st-key-go_"] button:hover::after { transform: rotate(-4deg) translateY(-12px) scale(1.07); }
+.stApp [class*="st-key-go_"] button p { color: rgba(255, 255, 255, 0.88) !important; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3) !important; text-align: right; font-size: 0.9rem; }
+.stApp [class*="st-key-go_"] button p strong { color: #fff !important; font-family: var(--serif) !important; font-size: 2.1rem !important; line-height: 1.05; letter-spacing: -0.01em; margin-bottom: 0.5rem; }
+.stApp [class*="st-key-go_"] button::before { display: none !important; }
+@media (max-width: 700px) { .stApp [class*="st-key-go_"] button { min-height: 12rem; } .stApp [class*="st-key-go_"] button::after { width: 6rem; height: 7.4rem; } }
+
+/* מספרים: אריחים צבעוניים */
+.stat { border: 1px solid rgba(255, 255, 255, 0.14); border-radius: var(--tile-r); padding: 1.2rem 0.6rem; }
+.stat b { font: 900 clamp(2.4rem, 7vw, 3.8rem)/1 var(--serif); }
+.stat.st0 { background: linear-gradient(150deg, rgba(47, 214, 180, 0.30), rgba(47, 214, 180, 0.06)), var(--glass-strong); } .stat.st0 b { color: #7BF0D6; }
+.stat.st1 { background: linear-gradient(150deg, rgba(255, 211, 107, 0.30), rgba(255, 211, 107, 0.05)), var(--glass-strong); } .stat.st1 b { color: #FFD36B; }
+.stat.st2 { background: linear-gradient(150deg, rgba(255, 111, 168, 0.30), rgba(255, 111, 168, 0.05)), var(--glass-strong); } .stat.st2 b { color: #FF9CC4; }
+html[data-mode="light"] .stat.st0 b { color: #0E8F78; } html[data-mode="light"] .stat.st1 b { color: #A8730A; } html[data-mode="light"] .stat.st2 b { color: #C0306E; }
+
+/* מוצרים נבחרים: אריחי בנטו */
+.feat { border-radius: var(--tile-r) var(--tile-r) 0 0; border: 1px solid rgba(255, 255, 255, 0.14); }
+.feat-photo { border-radius: 22px; }
+[class*="st-key-feat_"] button { border-radius: 0 0 var(--tile-r) var(--tile-r) !important; }
+.ask { font-family: var(--serif) !important; font-size: 2.3rem; }
+html[data-mode] .stApp .st-key-go_list button { background-image: linear-gradient(150deg, #FF6FA8 0%, #D13B8B 55%, #7A2BD8 130%) !important; background-color: #D13B8B !important; }
+html[data-mode] .stApp .st-key-go_product button { background-image: linear-gradient(150deg, #8E6BFF 0%, #5B33E0 60%, #2B1A80 130%) !important; background-color: #5B33E0 !important; }
+html[data-mode] .stApp .st-key-go_search button { background-image: linear-gradient(150deg, #2FD6B4 0%, #1496A8 60%, #1B4B9B 130%) !important; background-color: #1496A8 !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button { background-repeat: no-repeat !important; background-position: 0 0 !important; background-size: auto !important; box-shadow: 0 34px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important; }
+html[data-mode] .stApp [class*="st-key-go_"] button > div, html[data-mode] .stApp [class*="st-key-go_"] button [data-testid="stMarkdownContainer"] { width: 100%; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { white-space: normal !important; max-width: 62%; margin-inline-start: auto; }
+html[data-mode] .stApp [class*="st-key-go_"] button p strong { max-width: 100%; }
+html[data-mode] .stApp [class*="st-key-go_"] button { min-height: 19.5rem; }
+html[data-mode] .stApp [class*="st-key-go_"] button p { max-width: 100%; margin-inline-start: 0; }
+html[data-mode] .stApp [class*="st-key-go_"] button p strong { font-size: 1.9rem !important; display: block; }
+html[data-mode] .stApp [class*="st-key-go_"] button::after { width: 7.2rem; height: 8.8rem; bottom: -1rem; }
+@media (max-width: 700px) {
+    html[data-mode] .stApp [class*="st-key-go_"] button { min-height: 13rem; }
+    html[data-mode] .stApp [class*="st-key-go_"] button p { max-width: 58%; margin-inline-start: auto; }
+    html[data-mode] .stApp [class*="st-key-go_"] button p strong { font-size: 1.7rem !important; }
+    html[data-mode] .stApp [class*="st-key-go_"] button::after { width: 6.2rem; height: 7.6rem; }
+}
+/* כותרת כל מסך פנימי: אריח צבעוני כמו הירו */
+.how { background: var(--hero-bg) !important; border-color: rgba(255, 255, 255, 0.24) !important; box-shadow: 0 30px 70px rgba(60, 20, 140, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important; }
+.how b, .how span:not(.how-ico):not(.msr) { color: #fff !important; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25); }
+.how b { font-size: 2.1rem !important; }
+.how .how-ico { background: rgba(255, 255, 255, 0.18) !important; border-color: rgba(255, 255, 255, 0.5) !important; }
+.how .msr { color: #fff !important; }
+.how-rule { background: linear-gradient(90deg, #fff, transparent) !important; }
+.stage { background: var(--hero-bg) !important; border-color: rgba(255, 255, 255, 0.25) !important; }
+.stage .stage-brand { color: #FFE7B8; } .stage .stage-name, .stage .stage-name2 { color: #fff; }
+.stage .plink { color: #fff !important; border-color: rgba(255, 255, 255, 0.6); }
+.stage::before { background: repeating-conic-gradient(from 0deg at 85% 40%, transparent 0 9deg, rgba(255, 255, 255, 0.07) 9.5deg 10deg); }
+.stage .stage-photo i { background: radial-gradient(circle at 50% 38%, #fff 0%, #f7eefc 62%, #d9c6ee 100%); }

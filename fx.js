@@ -559,7 +559,6 @@
     var index = 0;
     try {
         var saved = window.localStorage.getItem(KEY);
-        if (!saved && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches) saved = 'pearl';
         for (var i = 0; i < THEMES.length; i++) if (THEMES[i][0] === saved) index = i;
     } catch (e) {}
 
