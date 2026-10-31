@@ -2356,3 +2356,5 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 /* מתג: המסילה והכפתור העגול תמיד משמאל לימין, כדי שהכפתור יישאר בתוך המסילה גם ב-RTL */
 [data-testid="stCheckbox"] label > div:first-of-type, [data-testid="stCheckbox"] label > div:first-of-type > div { direction: ltr !important; }
 .hist-noimg img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+.hist-noimg { overflow: hidden; background: #fff !important; }
+.hist-noimg img { width: 72px !important; height: 72px !important; max-width: none; max-height: none; object-fit: contain; padding: 4px; box-sizing: border-box; border-radius: 0; }
