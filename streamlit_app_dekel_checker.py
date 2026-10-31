@@ -1681,13 +1681,15 @@ if not st.session_state.entered:
     st.stop()
 
 st.markdown(brand_html(), unsafe_allow_html=True)
-top_left, top_right, top_profile, top_account = st.columns([1, 1, 1, 1.3])
+top_profile, top_routine, top_left, top_right, top_account = st.columns([1.15, 1.15, 1, 1, 1.3])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
 top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
 if top_profile.button(
-    f"{NAV_ICONS['profile']} הפרופיל שלי" + ("" if skinprofile.is_empty(st.session_state.get("profile") or {}) else "  ✓"), key="top_profile",
+    f"{NAV_ICONS['profile']} הפרופיל שלי" + ("" if skinprofile.is_empty(st.session_state.get("profile") or {}) else "  ✓"), key="top_profile", type="primary",
 ):
     st.session_state.open_profile = True
+if top_routine.button(f"{NAV_ICONS['routine']} השגרה שלי", key="top_routine", type="primary"):
+    st.session_state.open_routine = True
 with top_account:
     _who = current_user()
     if _who:
@@ -3503,10 +3505,6 @@ def tab_home():
                 if st.button("פתחי", key=f"home_recent_{entry['key']}"[:60], use_container_width=True):
                     open_history_entry(entry)
 
-    profile_label = f"{NAV_ICONS['profile']} הפרופיל שלי" + ("  ✓" if not skinprofile.is_empty(st.session_state.profile) else "  (חדש)")
-    if st.button(profile_label, key="home_profile", use_container_width=True):
-        profile_dialog()
-
     entry = routine_entries_by_slug().get(SAMPLE_SLUG)
     if entry:
         if st.button(f"{NAV_ICONS['sample']} רוצה לראות איך זה עובד? נסי עם מוצר לדוגמה", key="home_sample", use_container_width=True):
@@ -3534,6 +3532,8 @@ def tab_coupons():
 
 
 NAV_TABS = [TAB_HOME, TAB_INGREDIENTS, TAB_PRODUCT, TAB_COMPAT, TAB_ROUTINE, TAB_HISTORY, TAB_COUPONS]
+if st.session_state.pop("open_routine", False):
+    st.session_state.goto_tab = TAB_ROUTINE
 if st.session_state.get("goto_tab") in NAV_TABS:
     st.session_state.nav = st.session_state.pop("goto_tab")
 if st.session_state.get("nav") not in NAV_TABS:
