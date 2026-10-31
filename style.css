@@ -2342,3 +2342,11 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 .feat.recent .feat-photo { height: 5.6rem; margin-bottom: 0.5rem; }
 .feat.recent .feat-ph { font-size: 2.4rem; opacity: 0.6; }
 .feat.recent .feat-name { font-size: 0.92rem; min-height: 0; margin: 0; direction: rtl; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* מובייל: מסך הכניסה סטטי, בלי תנועה ובלי הבהוב */
+@media (max-width: 768px) {
+  .gate-mascot { animation: none !important; transform: none !important; opacity: 1 !important; }
+  .gate-glow { animation: none !important; opacity: 0.8 !important; filter: none !important; background: radial-gradient(circle, rgba(201, 166, 107, 0.3), transparent 66%); }
+  .gate-rays, .gate-ring, .gate-dust { display: none !important; }
+  .gate-stage, .gate-stage * { will-change: auto !important; }
+}
