@@ -2317,8 +2317,6 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 @media (max-width: 640px) {
   [data-testid="stHorizontalBlock"]:has(.st-key-restart) { flex-direction: row !important; flex-wrap: wrap !important; gap: 0.4rem !important; justify-content: center; }
   [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"] { width: auto !important; min-width: 0 !important; flex: 0 0 auto !important; }
-  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:empty,
-  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:nth-child(3) { display: none !important; }
   [data-testid="stHorizontalBlock"]:has(.st-key-restart) button, [data-testid="stHorizontalBlock"]:has(.st-key-restart) a { font-size: 0.82rem !important; padding: 0.3rem 0.8rem !important; min-height: 2.2rem !important; }
 }
 
@@ -2350,3 +2348,11 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
   .gate-rays, .gate-ring, .gate-dust { display: none !important; }
   .gate-stage, .gate-stage * { will-change: auto !important; }
 }
+
+/* תיבות טקסט: עטיפת baseweb שקופה כדי שלא תופיע קופסה ורודה מאחורי השדה */
+[data-testid="stTextInput"] [data-baseweb="input"], [data-testid="stTextInput"] [data-baseweb="base-input"],
+[data-testid="stTextArea"] [data-baseweb="textarea"], [data-testid="stTextArea"] [data-baseweb="base-input"] { background: transparent !important; }
+
+/* מתג: המסילה והכפתור העגול תמיד משמאל לימין, כדי שהכפתור יישאר בתוך המסילה גם ב-RTL */
+[data-testid="stCheckbox"] label > div:first-of-type, [data-testid="stCheckbox"] label > div:first-of-type > div { direction: ltr !important; }
+.hist-noimg img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }

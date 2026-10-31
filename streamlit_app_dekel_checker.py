@@ -1681,9 +1681,13 @@ if not st.session_state.entered:
     st.stop()
 
 st.markdown(brand_html(), unsafe_allow_html=True)
-top_left, top_right, _, top_account = st.columns([1, 1, 1, 1.3])
+top_left, top_right, top_profile, top_account = st.columns([1, 1, 1, 1.3])
 top_left.button("🔄 התחלה מחדש", on_click=reset_all, key="restart")
 top_right.link_button("🌐 אתר דקל", "https://thedekel.co.il/#milonid")
+if top_profile.button(
+    f"{NAV_ICONS['profile']} הפרופיל שלי" + ("" if skinprofile.is_empty(st.session_state.get("profile") or {}) else "  ✓"), key="top_profile",
+):
+    st.session_state.open_profile = True
 with top_account:
     _who = current_user()
     if _who:
@@ -3327,8 +3331,11 @@ def tab_history():
         section("🕘", "החיפושים שלי", f"{len(history)} פריטים")
         for index, entry in enumerate(history):
             thumb_col, text_col, button_col = st.columns([1, 4, 2], vertical_alignment="center")
+            catalog_uri = thumb_uri((entry.get("product") or {}).get("slug"))
             if entry["thumb"]:
                 thumb_col.image(entry["thumb"], width=72)
+            elif catalog_uri:
+                thumb_col.markdown(f'<div class="hist-noimg"><img alt="" src="{catalog_uri}"></div>', unsafe_allow_html=True)
             else:
                 thumb_col.markdown('<div class="hist-noimg">🧴</div>', unsafe_allow_html=True)
             kind = "מוצר" if entry["kind"] == "product" else "צילום רכיבים"
@@ -3562,6 +3569,8 @@ render_coupon_alerts()
     TAB_COUPONS: tab_coupons,
 }[active_tab]()
 
+if st.session_state.pop("open_profile", False):
+    profile_dialog()
 render_bottom_nav(active_tab)
 sync_account_data()
 
