@@ -8,6 +8,8 @@ CONCERNS = {
     "redness": "אדמומיות ורוזציאה", "dryness": "יובש ומתיחות",
 }
 
+LEVELS = ("easy", "medium", "full")
+
 FRAGRANCE = ("parfum", "fragrance", "linalool", "limonene", "geraniol", "citronellol", "coumarin", "eugenol", "cinnamal")
 DRYING_ALCOHOL = re.compile(r"(alcohol denat|sd alcohol|isopropyl alcohol|ethanol)", re.I)
 COMEDOGENIC = ("coconut oil", "cocos nucifera", "isopropyl myristate", "isopropyl palmitate", "wheat germ", "cocoa butter", "theobroma")
@@ -49,27 +51,28 @@ def normalize(profile):
         "concerns": [c for c in profile.get("concerns", []) if c in CONCERNS],
         "preg": bool(profile.get("preg")),
         "avoid": [a.strip().lower() for a in profile.get("avoid", []) if a and a.strip()],
+        "level": profile.get("level") if profile.get("level") in LEVELS else "",
     }
 
 
 def is_empty(profile):
     profile = normalize(profile)
-    return not (profile["skin"] or profile["concerns"] or profile["preg"] or profile["avoid"])
+    return not (profile["skin"] or profile["concerns"] or profile["preg"] or profile["avoid"] or profile["level"])
 
 
 def encode(profile):
     profile = normalize(profile)
     if is_empty(profile):
         return ""
-    return "~".join([profile["skin"], ",".join(profile["concerns"]), "1" if profile["preg"] else "0", ",".join(profile["avoid"])])
+    return "~".join([profile["skin"], ",".join(profile["concerns"]), "1" if profile["preg"] else "0", ",".join(profile["avoid"]), profile["level"]])
 
 
 def decode(text):
     parts = (text or "").split("~")
-    parts += [""] * (4 - len(parts))
+    parts += [""] * (5 - len(parts))
     return normalize({
         "skin": parts[0], "concerns": [c for c in parts[1].split(",") if c],
-        "preg": parts[2] == "1", "avoid": [a for a in parts[3].split(",") if a],
+        "preg": parts[2] == "1", "avoid": [a for a in parts[3].split(",") if a], "level": parts[4],
     })
 
 

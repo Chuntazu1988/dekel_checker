@@ -2358,3 +2358,29 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 .hist-noimg img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
 .hist-noimg { overflow: hidden; background: #fff !important; }
 .hist-noimg img { width: 72px !important; height: 72px !important; max-width: none; max-height: none; object-fit: contain; padding: 4px; box-sizing: border-box; border-radius: 0; }
+
+/* בוחרי רמה ובחירה מקוטעת בכלל האתר: כהים, קריאים, בלי רקע בהיר */
+[data-testid="stSegmentedControl"] [data-testid="stButtonGroup"], [data-testid="stSegmentedControl"] [role="group"] { gap: 0.4rem; flex-wrap: wrap; }
+[data-testid="stSegmentedControl"] button { background: var(--tile-bg) !important; color: var(--tile-ink) !important; border: 1px solid var(--tile-line) !important; border-radius: 999px !important; padding: 0.35rem 1rem !important; min-height: 2.3rem; }
+[data-testid="stSegmentedControl"] button * { color: var(--tile-ink) !important; }
+[data-testid="stSegmentedControl"] button[aria-checked="true"], [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] {
+    background: linear-gradient(135deg, #E9D3A8, #B9935A) !important; border-color: transparent !important; box-shadow: 0 8px 22px rgba(185, 147, 90, 0.35);
+}
+[data-testid="stSegmentedControl"] button[aria-checked="true"] *, [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] * { color: #2A1D0B !important; font-weight: 700; }
+
+/* פס הכפתורים העליון: הכיתוב בשורה אחת */
+[data-testid="stHorizontalBlock"]:has(.st-key-restart) button, [data-testid="stHorizontalBlock"]:has(.st-key-restart) a { white-space: nowrap !important; }
+[data-testid="stHorizontalBlock"]:has(.st-key-restart) button p { white-space: nowrap !important; font-size: 0.88rem; }
+@media (min-width: 641px) { [data-testid="stHorizontalBlock"]:has(.st-key-restart) { flex-wrap: wrap !important; justify-content: center; gap: 0.5rem !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"] { width: auto !important; flex: 0 0 auto !important; min-width: 0 !important; } }
+
+/* בורר רמה / סוג עור: כהה וקריא (המזהה האמיתי של הכפתורים) */
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_control"]:not(.st-key-nav button) { background: var(--tile-bg) !important; color: var(--tile-ink) !important; border: 1px solid var(--tile-line) !important; border-radius: 999px !important; padding: 0.35rem 1rem !important; min-height: 2.3rem; }
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_control"]:not(.st-key-nav button) * { color: var(--tile-ink) !important; }
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"]:not(.st-key-nav button) { background: linear-gradient(135deg, #E9D3A8, #B9935A) !important; border-color: transparent !important; box-shadow: 0 8px 22px rgba(185, 147, 90, 0.35); }
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"]:not(.st-key-nav button) * { color: #2A1D0B !important; font-weight: 700; }
+
+/* לשוניות הבחירה הוורודות: מרווח בין הכיתוב לסימן ה-X */
+[data-baseweb="tag"] { gap: 0.7rem !important; padding-inline: 0.8rem !important; }
+[data-baseweb="tag"] [role="presentation"], [data-baseweb="tag"] svg { margin-inline: 0.35rem !important; flex: 0 0 auto; }
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"]:not(.st-key-nav button) { border-radius: 999px !important; }

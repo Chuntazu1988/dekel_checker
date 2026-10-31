@@ -22,6 +22,7 @@ import easyocr
 from routine import plan_routine
 import skinprofile
 import cloud
+import recommend
 from hebrew import has_hebrew, ingredient_matches, ingredient_options
 from compat import (
     ACTIVE_NAMES,
@@ -2038,6 +2039,12 @@ def profile_dialog():
         "מה מטריד אותך?", list(skinprofile.CONCERNS), default=current["concerns"],
         format_func=lambda key: skinprofile.CONCERNS[key], key="pf_concerns",
     )
+    level = st.segmented_control(
+        "כמה מורכבת שתהיה השגרה שלך?", list(recommend.LEVELS), default=current["level"] or None,
+        format_func=lambda key: recommend.LEVELS[key][0], key="pf_level",
+    )
+    if level:
+        st.caption(recommend.LEVELS[level][1])
     preg = st.toggle("🤰 בהיריון או מניקה", value=current["preg"], key="pf_preg")
     avoid = st.text_input(
         "רכיבים שאת רוצה להימנע מהם (באנגלית, מופרדים בפסיק)", value=", ".join(current["avoid"]),
@@ -2047,7 +2054,7 @@ def profile_dialog():
     if save_col.button("💾 שמרי", type="primary", key="pf_save", use_container_width=True):
         st.session_state.profile = skinprofile.normalize({
             "skin": skin or "", "concerns": concerns, "preg": preg,
-            "avoid": [part for part in avoid.split(",")],
+            "avoid": [part for part in avoid.split(",")], "level": level or "",
         })
         save_profile()
         st.rerun()
@@ -2063,6 +2070,8 @@ def profile_chips_html(profile):
     if profile["skin"]:
         chips.append(skinprofile.SKIN_TYPES[profile["skin"]])
     chips += [skinprofile.CONCERNS[c] for c in profile["concerns"]]
+    if profile.get("level"):
+        chips.append("שגרה " + recommend.LEVELS[profile["level"]][0])
     if profile["preg"]:
         chips.append("היריון/הנקה")
     chips += [f"בלי {a}" for a in profile["avoid"]]
@@ -3244,6 +3253,55 @@ def routine_check_banner():
         st.rerun()
 
 
+def rec_slot_html(title, icon, steps):
+    if not steps:
+        return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div><div class="cx-empty">אין מוצרים.</div></div>'
+    rows = "".join(
+        f'<div class="rt-item"><span class="rt-n">{index}</span>{cx_img(entry["slug"], "rt-img")}'
+        f'<div><b>{html.escape(entry["name"])}</b>'
+        f'<small>{html.escape(category)} · {html.escape(entry["company"].split("|")[-1].strip())}'
+        f'{" · " + html.escape(", ".join(reasons[:2])) if reasons else ""}</small></div></div>'
+        for index, (category, entry, reasons) in enumerate(steps, 1)
+    )
+    return f'<div class="rt-col"><div class="rt-head">{icon} {title}</div>{rows}</div>'
+
+
+def recommended_routine_panel():
+    profile = skinprofile.normalize(st.session_state.profile)
+    with st.container(border=True):
+        section("✨", "שגרה מומלצת עבורך", "בחרי כמה מורכבת תרצי שהשגרה תהיה, ונתאים מוצרים לפי הפרופיל שלך")
+        level = st.segmented_control(
+            "רמת השגרה", list(recommend.LEVELS), default=profile["level"] or None,
+            format_func=lambda key: "שגרה " + recommend.LEVELS[key][0], key=f"rec_level_{profile['level'] or 'none'}",
+            label_visibility="collapsed",
+        )
+        if level and level != profile["level"]:
+            st.session_state.profile = skinprofile.normalize({**profile, "level": level})
+            save_profile()
+            st.rerun()
+        if not level:
+            st.caption("קלה: " + recommend.LEVELS["easy"][1] + ". בינונית: " + recommend.LEVELS["medium"][1] + ". מורכבת: " + recommend.LEVELS["full"][1] + ".")
+            return
+        st.caption(recommend.LEVELS[level][1])
+        if not (profile["skin"] or profile["concerns"]):
+            st.info("כדי שההמלצה תתאים לך, מלאי סוג עור ומה מטריד אותך בפרופיל.")
+            if st.button("🧬 למילוי הפרופיל", key="rec_profile"):
+                profile_dialog()
+        plan, notes = recommend.recommend(profile, level, list(routine_entries_by_slug().values()), categories_of)
+        st.markdown(
+            '<div class="rt-grid">' + rec_slot_html("בוקר", "☀️", plan["AM"]) + rec_slot_html("ערב", "🌙", plan["PM"]) + "</div>",
+            unsafe_allow_html=True,
+        )
+        for icon, text in notes:
+            st.caption(f"{icon} {text}")
+        unique = {entry["slug"]: entry for steps in plan.values() for _c, entry, _r in steps}
+        if unique and st.button(f"➕ הוסיפי את כל השגרה המומלצת ({len(unique)} מוצרים) לשגרה שלי", key="rec_add_all", type="primary", use_container_width=True):
+            for entry in unique.values():
+                add_to_routine(entry)
+            st.rerun()
+        st.caption("ההמלצה לפי הפעילים הבולטים וסוג המוצר בקטלוג של דקל, ואינה ייעוץ רפואי.")
+
+
 def tab_routine():
     how_box(
         "🗓️", "השגרה שלי",
@@ -3251,6 +3309,7 @@ def tab_routine():
         "אחרי כל הוספה אנחנו בודקות אם הוא מתנגש עם מה שכבר בשגרה, ומסדרות הכול לבוקר ולערב.",
     )
     routine_check_banner()
+    recommended_routine_panel()
     routine_add_panel()
     by_slug = routine_lookup()
     st.session_state.routine = [slug for slug in st.session_state.routine if slug in by_slug]
