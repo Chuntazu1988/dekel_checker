@@ -2632,6 +2632,7 @@ def choose_dekel_product(product, from_photo=False):
     st.session_state.product_hits = None
     thumb = (st.session_state.photo_thumb if from_photo else None) or catalog_thumb(product)
     add_history("product", f"p:{product.get('slug') or product['name']}", product["name"], thumb, product, meta)
+    st.session_state.scroll_stage = True
     st.session_state.auto_scan = True
     st.session_state.celebrate_kind = "yes" if product.get("verified") else "no"
     st.session_state.celebrate_id = int(time.time() * 1000)
@@ -2746,6 +2747,12 @@ def selected_product_banner():
         st.info(f"המוצר: {label}. רשימת הרכיבים נלקחה מ-Open Beauty Facts ולא מדקל, וייתכן שהיא שונה מהאריזה שלך.")
     else:
         st.markdown(product_stage_html(product), unsafe_allow_html=True)
+        if st.session_state.pop("scroll_stage", False):
+            st.html(
+                "<script>setTimeout(function(){var s=document.querySelector('.stage');"
+                "if(s){s.scrollIntoView({behavior:'smooth',block:'center'});}},900);</script>",
+                unsafe_allow_javascript=True,
+            )
         matches = product_coupons(product)
         if matches:
             toast_once(f"sel:{product.get('slug')}", f"יש קופון פעיל ל-{product['name']}: {coupon_line(matches[0])}")

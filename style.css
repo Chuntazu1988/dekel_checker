@@ -2425,3 +2425,6 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
   .feat-name { font-size: 0.92rem; min-height: 2.4rem; }
 }
 @media (max-width: 700px) { .feat-tag { min-height: 1.3rem; } .feat { min-height: 17.5rem; } }
+
+/* בנייד: חפצי הרקע הצפים עמומים יותר כדי שלא יפריעו לקריאה */
+@media (max-width: 700px) { #fx-bg { opacity: 0.5; } }
