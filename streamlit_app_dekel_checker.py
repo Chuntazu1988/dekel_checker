@@ -3516,9 +3516,8 @@ def tab_home():
 
     st.markdown(stats_html(), unsafe_allow_html=True)
     st.markdown('<div class="ask small">או הרבה יותר מזה</div>', unsafe_allow_html=True)
-    cols = st.columns(4)
+    cols = st.columns(3)
     for col, (label, tab, key) in zip(cols, (
-        (nav_label(TAB_ROUTINE), TAB_ROUTINE, "home_routine"),
         (nav_label(TAB_HISTORY), TAB_HISTORY, "home_history"),
         (nav_label(TAB_COMPAT), TAB_COMPAT, "home_compat"),
         (nav_label(TAB_COUPONS), TAB_COUPONS, "home_coupons"),
