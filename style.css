@@ -2412,3 +2412,16 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 [data-testid="stFileUploaderDropzone"] button::after { content: "⬆  בחירת תמונה"; }
 @media (min-width: 641px) { .st-key-nav [data-testid="stButtonGroup"] button { padding: 0.6rem 0.75rem; font-size: 0.9rem; gap: 0.3rem; }
   .st-key-nav [data-testid="stButtonGroup"] > div { gap: 0.35rem; flex-wrap: nowrap; } }
+
+/* ---------- מסך הבית בנייד ---------- */
+@media (max-width: 700px) {
+  .hero { padding-top: 14rem !important; min-height: 0 !important; }
+  .hero-mascot { width: 11rem !important; height: 11rem !important; top: 1.4rem !important; }
+  .hero .greet { margin-top: 0; }
+  /* מוצרים נבחרים: שני כרטיסים בשורה במקום כרטיס ענק אחד */
+  [data-testid="stHorizontalBlock"]:has(.feat):not(:has(.recent)) { flex-direction: row !important; flex-wrap: wrap !important; gap: 0.6rem !important; }
+  [data-testid="stHorizontalBlock"]:has(.feat):not(:has(.recent)) > [data-testid="stColumn"] { flex: 0 0 calc(50% - 0.3rem) !important; width: calc(50% - 0.3rem) !important; min-width: 0 !important; }
+  .feat-photo { height: 6.4rem; }
+  .feat-name { font-size: 0.92rem; min-height: 2.4rem; }
+}
+@media (max-width: 700px) { .feat-tag { min-height: 1.3rem; } .feat { min-height: 17.5rem; } }
