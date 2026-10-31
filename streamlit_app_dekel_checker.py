@@ -2039,12 +2039,6 @@ def profile_dialog():
         "מה מטריד אותך?", list(skinprofile.CONCERNS), default=current["concerns"],
         format_func=lambda key: skinprofile.CONCERNS[key], key="pf_concerns",
     )
-    level = st.segmented_control(
-        "כמה מורכבת שתהיה השגרה שלך?", list(recommend.LEVELS), default=current["level"] or None,
-        format_func=lambda key: recommend.LEVELS[key][0], key="pf_level",
-    )
-    if level:
-        st.caption(recommend.LEVELS[level][1])
     preg = st.toggle("🤰 בהיריון או מניקה", value=current["preg"], key="pf_preg")
     avoid = st.text_input(
         "רכיבים שאת רוצה להימנע מהם (באנגלית, מופרדים בפסיק)", value=", ".join(current["avoid"]),
@@ -2054,7 +2048,7 @@ def profile_dialog():
     if save_col.button("💾 שמרי", type="primary", key="pf_save", use_container_width=True):
         st.session_state.profile = skinprofile.normalize({
             "skin": skin or "", "concerns": concerns, "preg": preg,
-            "avoid": [part for part in avoid.split(",")], "level": level or "",
+            "avoid": [part for part in avoid.split(",")], "level": current["level"],
         })
         save_profile()
         st.rerun()
@@ -3305,11 +3299,17 @@ def recommended_routine_panel():
 def tab_routine():
     how_box(
         "🗓️", "השגרה שלי",
-        "מוסיפות את המוצרים שאת משתמשת בהם בחיפוש, בצילום המוצר או בצילום הרכיבים. "
+        "בוחרות: שגרה אישית עם המוצרים שלך (בחיפוש, בצילום המוצר או בצילום הרכיבים), או שגרה מותאמת שנבנית לבד לפי הפרופיל. "
         "אחרי כל הוספה אנחנו בודקות אם הוא מתנגש עם מה שכבר בשגרה, ומסדרות הכול לבוקר ולערב.",
     )
     routine_check_banner()
-    recommended_routine_panel()
+    mode = st.segmented_control(
+        "סוג שגרה", ["mine", "auto"], default="mine", key="routine_mode", label_visibility="collapsed",
+        format_func=lambda key: {"mine": "🧴 שגרת הטיפוח האישית שלי", "auto": "✨ שגרת טיפוח מותאמת (נבנית אוטומטית)"}[key],
+    ) or "mine"
+    if mode == "auto":
+        recommended_routine_panel()
+        return
     routine_add_panel()
     by_slug = routine_lookup()
     st.session_state.routine = [slug for slug in st.session_state.routine if slug in by_slug]
