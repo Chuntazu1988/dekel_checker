@@ -2384,3 +2384,31 @@ html[data-mode] .stApp [class*="st-key-go_"] button::before { margin-inline: aut
 [data-baseweb="tag"] { gap: 0.7rem !important; padding-inline: 0.8rem !important; }
 [data-baseweb="tag"] [role="presentation"], [data-baseweb="tag"] svg { margin-inline: 0.35rem !important; flex: 0 0 auto; }
 [data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"]:not(.st-key-nav button) { border-radius: 999px !important; }
+
+/* ---------- מעבר על האתר: עברית בהעלאת קבצים, ניווט אחיד, כותרת קומפקטית בנייד ---------- */
+[data-testid="stFileUploaderDropzone"] button { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzone"] button > * { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzone"] button::after { content: "בחירת תמונה"; font: 600 1rem var(--sans); color: #fff; }
+[data-testid="stFileUploaderDropzone"] small { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzone"] small::after { content: "עד 200MB · JPG או PNG"; font-size: 0.85rem; color: var(--muted); direction: rtl; }
+[data-testid="stFileUploaderDropzoneInstructions"] > div > span { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzoneInstructions"] > div > span::after { content: "גררי לכאן תמונה או בחרי מהמכשיר"; font-size: 0.9rem; color: var(--muted); }
+
+@media (min-width: 641px) {
+  .st-key-nav [data-testid="stButtonGroup"] > div { justify-content: center; gap: 0.5rem; }
+  .st-key-nav [data-testid="stButtonGroup"] button { flex: 0 0 auto; min-width: 0; padding: 0.7rem 1.1rem; }
+}
+
+@media (max-width: 640px) {
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) { display: grid !important; grid-template-columns: repeat(6, 1fr); gap: 0.4rem !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"] { width: auto !important; min-width: 0 !important; grid-column: span 2; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:nth-child(1),
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) > [data-testid="stColumn"]:nth-child(2) { grid-column: span 3; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) button, [data-testid="stHorizontalBlock"]:has(.st-key-restart) a { width: 100% !important; justify-content: center; padding-inline: 0.3rem !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-restart) button p { font-size: 0.8rem; }
+  .copyright, .footer { padding-inline: 4.6rem; }
+}
+[data-testid="stFileUploaderDropzone"] button > * { display: none !important; }
+[data-testid="stFileUploaderDropzone"] button::after { content: "⬆  בחירת תמונה"; }
+@media (min-width: 641px) { .st-key-nav [data-testid="stButtonGroup"] button { padding: 0.6rem 0.75rem; font-size: 0.9rem; gap: 0.3rem; }
+  .st-key-nav [data-testid="stButtonGroup"] > div { gap: 0.35rem; flex-wrap: nowrap; } }

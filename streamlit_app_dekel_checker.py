@@ -2777,7 +2777,7 @@ def tab_ingredients():
             label_visibility="collapsed",
             key=f"uploader_{st.session_state.uploader_key}",
         )
-        st.caption("📱 בטלפון: לוחצים על Upload ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
+        st.caption("📱 בטלפון: לוחצים על 'בחירת תמונה' ובוחרים 'צילום' כדי לצלם ישירות במצלמה")
 
         if uploaded_image:
             st.image(preview_image(open_image(uploaded_image)), caption="התמונה שהועלתה", width="stretch")
@@ -2929,7 +2929,7 @@ def tab_product():
             label_visibility="collapsed",
             key=f"product_photo_{st.session_state.uploader_key}",
         )
-        st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: Upload ואז 'צילום'.")
+        st.caption("📱 צלמי את המוצר עצמו מקרוב, כשהמותג והשם נראים בבירור. בטלפון: 'בחירת תמונה' ואז 'צילום'.")
         if product_photo:
             st.image(preview_image(open_image(product_photo)), caption="תמונת המוצר", width="stretch")
             if st.button("🔎 זהי את המוצר"):
